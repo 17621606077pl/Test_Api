@@ -1,0 +1,113 @@
+{
+  "item":
+  [
+    {
+      "request":
+      {
+        "url": "http://localhost:5000/login",
+        "body":
+        {
+          "password":"admin",
+          "sex":"男",
+          "age":18
+        }
+      },
+      "response":
+      [
+        {
+          "message":
+          {
+            "username": "用户名不能为空"
+          }
+        }
+      ]
+    },
+    {
+      "request":
+      {
+        "url": "http://localhost:5000/login",
+        "body":
+        {
+          "username":"wuya",
+          "sex":"男",
+          "age":18
+        }
+      },
+      "response":
+      [
+        {
+        "message":
+        {
+          "password": "账户密码不能为空"
+        }
+      }
+      ]
+    },
+    {
+      "request":
+      {
+        "url": "http://localhost:5000/login",
+        "body":
+        {
+          "username":"wuya",
+          "password":"admin",
+          "sex":"asdf",
+          "age":18
+        }
+      },
+      "response":
+      [
+        {
+          "message":
+          {
+            "sex": "性别只能是男或者女"
+          }
+        }
+      ]
+    },
+    {
+      "request":
+      {
+        "url": "http://localhost:5000/login",
+        "body":
+        {
+          "username":"wuya",
+          "password":"admin",
+          "sex":"男",
+          "age":"rrest"
+        }
+      },
+      "response":
+      [
+        {
+          "message":
+          {
+            "age": "年龄必须为正正数"
+          }
+        }
+      ]
+    },
+    {
+      "request":
+      {
+        "url": "http://localhost:5000/login",
+        "body":
+        {
+          "username":"wuya",
+          "password":"admin",
+          "sex":"男",
+          "age":"18"
+        }
+      },
+      "response":
+      [
+        {
+          "age": 18,
+          "password": "admin",
+          "sex": "男",
+          "username": "wuya"
+        }
+      ]
+    }
+  ]
+}

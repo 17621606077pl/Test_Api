@@ -1,0 +1,1287 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8"/>
+    <title>Test Report</title>
+    <link href="assets/style.css" rel="stylesheet" type="text/css"/></head>
+  <body onLoad="init()">
+    <script>/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this file,
+ * You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+
+function toArray(iter) {
+    if (iter === null) {
+        return null;
+    }
+    return Array.prototype.slice.call(iter);
+}
+
+function find(selector, elem) { // eslint-disable-line no-redeclare
+    if (!elem) {
+        elem = document;
+    }
+    return elem.querySelector(selector);
+}
+
+function findAll(selector, elem) {
+    if (!elem) {
+        elem = document;
+    }
+    return toArray(elem.querySelectorAll(selector));
+}
+
+function sortColumn(elem) {
+    toggleSortStates(elem);
+    const colIndex = toArray(elem.parentNode.childNodes).indexOf(elem);
+    let key;
+    if (elem.classList.contains('result')) {
+        key = keyResult;
+    } else if (elem.classList.contains('links')) {
+        key = keyLink;
+    } else {
+        key = keyAlpha;
+    }
+    sortTable(elem, key(colIndex));
+}
+
+function showAllExtras() { // eslint-disable-line no-unused-vars
+    findAll('.col-result').forEach(showExtras);
+}
+
+function hideAllExtras() { // eslint-disable-line no-unused-vars
+    findAll('.col-result').forEach(hideExtras);
+}
+
+function showExtras(colresultElem) {
+    const extras = colresultElem.parentNode.nextElementSibling;
+    const expandcollapse = colresultElem.firstElementChild;
+    extras.classList.remove('collapsed');
+    expandcollapse.classList.remove('expander');
+    expandcollapse.classList.add('collapser');
+}
+
+function hideExtras(colresultElem) {
+    const extras = colresultElem.parentNode.nextElementSibling;
+    const expandcollapse = colresultElem.firstElementChild;
+    extras.classList.add('collapsed');
+    expandcollapse.classList.remove('collapser');
+    expandcollapse.classList.add('expander');
+}
+
+function showFilters() {
+    const filterItems = document.getElementsByClassName('filter');
+    for (let i = 0; i < filterItems.length; i++)
+        filterItems[i].hidden = false;
+}
+
+function addCollapse() {
+    // Add links for show/hide all
+    const resulttable = find('table#results-table');
+    const showhideall = document.createElement('p');
+    showhideall.innerHTML = '<a href="javascript:showAllExtras()">Show all details</a> / ' +
+                            '<a href="javascript:hideAllExtras()">Hide all details</a>';
+    resulttable.parentElement.insertBefore(showhideall, resulttable);
+
+    // Add show/hide link to each result
+    findAll('.col-result').forEach(function(elem) {
+        const collapsed = getQueryParameter('collapsed') || 'Passed';
+        const extras = elem.parentNode.nextElementSibling;
+        const expandcollapse = document.createElement('span');
+        if (extras.classList.contains('collapsed')) {
+            expandcollapse.classList.add('expander');
+        } else if (collapsed.includes(elem.innerHTML)) {
+            extras.classList.add('collapsed');
+            expandcollapse.classList.add('expander');
+        } else {
+            expandcollapse.classList.add('collapser');
+        }
+        elem.appendChild(expandcollapse);
+
+        elem.addEventListener('click', function(event) {
+            if (event.currentTarget.parentNode.nextElementSibling.classList.contains('collapsed')) {
+                showExtras(event.currentTarget);
+            } else {
+                hideExtras(event.currentTarget);
+            }
+        });
+    });
+}
+
+function getQueryParameter(name) {
+    const match = RegExp('[?&]' + name + '=([^&]*)').exec(window.location.search);
+    return match && decodeURIComponent(match[1].replace(/\+/g, ' '));
+}
+
+function init () { // eslint-disable-line no-unused-vars
+    resetSortHeaders();
+
+    addCollapse();
+
+    showFilters();
+
+    sortColumn(find('.initial-sort'));
+
+    findAll('.sortable').forEach(function(elem) {
+        elem.addEventListener('click',
+            function() {
+                sortColumn(elem);
+            }, false);
+    });
+}
+
+function sortTable(clicked, keyFunc) {
+    const rows = findAll('.results-table-row');
+    const reversed = !clicked.classList.contains('asc');
+    const sortedRows = sort(rows, keyFunc, reversed);
+    /* Whole table is removed here because browsers acts much slower
+     * when appending existing elements.
+     */
+    const thead = document.getElementById('results-table-head');
+    document.getElementById('results-table').remove();
+    const parent = document.createElement('table');
+    parent.id = 'results-table';
+    parent.appendChild(thead);
+    sortedRows.forEach(function(elem) {
+        parent.appendChild(elem);
+    });
+    document.getElementsByTagName('BODY')[0].appendChild(parent);
+}
+
+function sort(items, keyFunc, reversed) {
+    const sortArray = items.map(function(item, i) {
+        return [keyFunc(item), i];
+    });
+
+    sortArray.sort(function(a, b) {
+        const keyA = a[0];
+        const keyB = b[0];
+
+        if (keyA == keyB) return 0;
+
+        if (reversed) {
+            return keyA < keyB ? 1 : -1;
+        } else {
+            return keyA > keyB ? 1 : -1;
+        }
+    });
+
+    return sortArray.map(function(item) {
+        const index = item[1];
+        return items[index];
+    });
+}
+
+function keyAlpha(colIndex) {
+    return function(elem) {
+        return elem.childNodes[1].childNodes[colIndex].firstChild.data.toLowerCase();
+    };
+}
+
+function keyLink(colIndex) {
+    return function(elem) {
+        const dataCell = elem.childNodes[1].childNodes[colIndex].firstChild;
+        return dataCell == null ? '' : dataCell.innerText.toLowerCase();
+    };
+}
+
+function keyResult(colIndex) {
+    return function(elem) {
+        const strings = ['Error', 'Failed', 'Rerun', 'XFailed', 'XPassed',
+            'Skipped', 'Passed'];
+        return strings.indexOf(elem.childNodes[1].childNodes[colIndex].firstChild.data);
+    };
+}
+
+function resetSortHeaders() {
+    findAll('.sort-icon').forEach(function(elem) {
+        elem.parentNode.removeChild(elem);
+    });
+    findAll('.sortable').forEach(function(elem) {
+        const icon = document.createElement('div');
+        icon.className = 'sort-icon';
+        icon.textContent = 'vvv';
+        elem.insertBefore(icon, elem.firstChild);
+        elem.classList.remove('desc', 'active');
+        elem.classList.add('asc', 'inactive');
+    });
+}
+
+function toggleSortStates(elem) {
+    //if active, toggle between asc and desc
+    if (elem.classList.contains('active')) {
+        elem.classList.toggle('asc');
+        elem.classList.toggle('desc');
+    }
+
+    //if inactive, reset all other functions and add ascending active
+    if (elem.classList.contains('inactive')) {
+        resetSortHeaders();
+        elem.classList.remove('inactive');
+        elem.classList.add('active');
+    }
+}
+
+function isAllRowsHidden(value) {
+    return value.hidden == false;
+}
+
+function filterTable(elem) { // eslint-disable-line no-unused-vars
+    const outcomeAtt = 'data-test-result';
+    const outcome = elem.getAttribute(outcomeAtt);
+    const classOutcome = outcome + ' results-table-row';
+    const outcomeRows = document.getElementsByClassName(classOutcome);
+
+    for(let i = 0; i < outcomeRows.length; i++){
+        outcomeRows[i].hidden = !elem.checked;
+    }
+
+    const rows = findAll('.results-table-row').filter(isAllRowsHidden);
+    const allRowsHidden = rows.length == 0 ? true : false;
+    const notFoundMessage = document.getElementById('not-found-message');
+    notFoundMessage.hidden = !allRowsHidden;
+}
+</script>
+    <h1>login.html</h1>
+    <p>Report generated on 29-Jul-2021 at 16:46:18 by <a href="https://pypi.python.org/pypi/pytest-html">pytest-html</a> v3.1.1</p>
+    <h2>Environment</h2>
+    <table id="environment">
+      <tr>
+        <td>JAVA_HOME</td>
+        <td>D:\Java\jdk1.8.0_161</td></tr>
+      <tr>
+        <td>Packages</td>
+        <td>{"pluggy": "0.13.1", "py": "1.10.0", "pytest": "6.2.4"}</td></tr>
+      <tr>
+        <td>Platform</td>
+        <td>Windows-10-10.0.19041-SP0</td></tr>
+      <tr>
+        <td>Plugins</td>
+        <td>{"autochecklog": "0.2.0", "describe": "1.0.0", "html": "3.1.1", "metadata": "1.11.0", "tavern": "1.16.0"}</td></tr>
+      <tr>
+        <td>Python</td>
+        <td>3.9.2</td></tr></table>
+    <h2>Summary</h2>
+    <p>6 tests ran in 0.40 seconds. </p>
+    <p class="filter" hidden="true">(Un)check the boxes to filter the results.</p><input checked="true" class="filter" data-test-result="passed" hidden="true" name="filter_checkbox" onChange="filterTable(this)" type="checkbox"/><span class="passed">5 passed</span>, <input checked="true" class="filter" data-test-result="skipped" disabled="true" hidden="true" name="filter_checkbox" onChange="filterTable(this)" type="checkbox"/><span class="skipped">0 skipped</span>, <input checked="true" class="filter" data-test-result="failed" hidden="true" name="filter_checkbox" onChange="filterTable(this)" type="checkbox"/><span class="failed">1 failed</span>, <input checked="true" class="filter" data-test-result="error" disabled="true" hidden="true" name="filter_checkbox" onChange="filterTable(this)" type="checkbox"/><span class="error">0 errors</span>, <input checked="true" class="filter" data-test-result="xfailed" disabled="true" hidden="true" name="filter_checkbox" onChange="filterTable(this)" type="checkbox"/><span class="xfailed">0 expected failures</span>, <input checked="true" class="filter" data-test-result="xpassed" disabled="true" hidden="true" name="filter_checkbox" onChange="filterTable(this)" type="checkbox"/><span class="xpassed">0 unexpected passes</span>
+    <h2>Results</h2>
+    <table id="results-table">
+      <thead id="results-table-head">
+        <tr>
+          <th class="sortable result initial-sort" col="result">Result</th>
+          <th class="sortable" col="name">Test</th>
+          <th class="sortable" col="duration">Duration</th>
+          <th class="sortable links" col="links">Links</th></tr>
+        <tr hidden="true" id="not-found-message">
+          <th colspan="4">No results found. Try to check the filters</th></tr></thead>
+      <tbody class="failed results-table-row">
+        <tr>
+          <td class="col-result">Failed</td>
+          <td class="col-name">test_demo.tavern.yaml::æå¾ç½æµè¯</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log">to_verify = {&#x27;test_name&#x27;: &#x27;拉勾网测试&#x27;, &#x27;stages&#x27;: [{&#x27;name&#x27;: &#x27;请求拉勾网招聘信息&#x27;, &#x27;request&#x27;: {&#x27;url&#x27;: &#x27;https://www.lagou.com/jobs/v2/positionAjax...%B7&amp;kd=%E8%87%AA%E5%8A%A8%E5%8C%96%E6%B5%8B%E8%AF%95%E5%B7%A5%E7%A8%8B%E5%B8%88&#x27;}}, &#x27;response&#x27;: {&#x27;status_code&#x27;: 200}}]}<br/>schema = {&#x27;name&#x27;: &#x27;Test schema&#x27;, &#x27;desc&#x27;: &#x27;Matches test blocks&#x27;, &#x27;schema;any_request_json&#x27;: {&#x27;func&#x27;: &#x27;validate_request_json&#x27;, &#x27;t... &#x27;map&#x27;, &#x27;mapping&#x27;: {&#x27;username&#x27;: {&#x27;type&#x27;: &#x27;str&#x27;, &#x27;required&#x27;: True}, &#x27;password&#x27;: {&#x27;type&#x27;: &#x27;str&#x27;, &#x27;required&#x27;: False}}}}}}}<br/><br/>    def verify_generic(to_verify, schema):<br/>        &quot;&quot;&quot;Verify a generic file against a given schema<br/>    <br/>        Args:<br/>            to_verify (dict): Filename of source tests to check<br/>            schema (dict): Schema to verify against<br/>    <br/>        Raises:<br/>            BadSchemaError: Schema did not match<br/>        &quot;&quot;&quot;<br/>        logger.debug(&quot;Verifying %s against %s&quot;, to_verify, schema)<br/>    <br/>        here = os.path.dirname(os.path.abspath(__file__))<br/>        extension_module_filename = os.path.join(here, &quot;extensions.py&quot;)<br/>    <br/>        verifier = core.Core(<br/>            source_data=to_verify,<br/>            schema_data=schema,<br/>            extensions=[extension_module_filename],<br/>        )<br/>    <br/>        try:<br/>&gt;           verifier.validate()<br/><br/>d:\python1\lib\site-packages\tavern\schemas\files.py:106: <br/>_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ <br/><br/>self = &lt;pykwalify.core.Core object at 0x000002B59F618F40&gt;, raise_exception = True<br/><br/>    def validate(self, raise_exception=True):<br/>        &quot;&quot;&quot;<br/>        &quot;&quot;&quot;<br/>        log.debug(u&quot;starting core&quot;)<br/>    <br/>        self._start_validate(self.source)<br/>        self.validation_errors = [unicode(error) for error in self.errors]<br/>        self.validation_errors_exceptions = self.errors<br/>    <br/>        if self.errors is None or len(self.errors) == 0:<br/>            log.info(u&quot;validation.valid&quot;)<br/>        else:<br/>            log.error(u&quot;validation.invalid&quot;)<br/>            log.error(u&quot; --- All found errors ---&quot;)<br/>            log.error(self.validation_errors)<br/>            if raise_exception:<br/>&gt;               raise SchemaError(u&quot;Schema validation failed:\n - {error_msg}.&quot;.format(<br/>                    error_msg=u&#x27;.\n - &#x27;.join(self.validation_errors)))<br/><span class="error">E               pykwalify.errors.SchemaError: &lt;SchemaError: error code 2: Schema validation failed:</span><br/><span class="error">E                - Key &#x27;methd&#x27; does not match any regex &#x27;params|headers&#x27;. Path: &#x27;/stages/0/request&#x27;.</span><br/><span class="error">E                - Cannot find required key &#x27;type&#x27;. Path: &#x27;/stages/0&#x27;.</span><br/><span class="error">E                - Cannot find required key &#x27;id&#x27;. Path: &#x27;/stages/0&#x27;.</span><br/><span class="error">E                - Key &#x27;name&#x27; was not defined. Path: &#x27;/stages/0&#x27;.</span><br/><span class="error">E                - Key &#x27;request&#x27; was not defined. Path: &#x27;/stages/0&#x27;.</span><br/><span class="error">E                - Key &#x27;response&#x27; was not defined. Path: &#x27;/stages/0&#x27;.: Path: &#x27;/&#x27;&gt;</span><br/><br/>d:\python1\lib\site-packages\pykwalify\core.py:194: SchemaError<br/><br/>The above exception was the direct cause of the following exception:<br/><br/>cls = &lt;class &#x27;_pytest.runner.CallInfo&#x27;&gt;, func = &lt;function call_runtest_hook.&lt;locals&gt;.&lt;lambda&gt; at 0x000002B59E92F4C0&gt;<br/>when = &#x27;call&#x27;, reraise = (&lt;class &#x27;_pytest.outcomes.Exit&#x27;&gt;, &lt;class &#x27;KeyboardInterrupt&#x27;&gt;)<br/><br/>    @classmethod<br/>    def from_call(<br/>        cls,<br/>        func: &quot;Callable[[], TResult]&quot;,<br/>        when: &quot;Literal[&#x27;collect&#x27;, &#x27;setup&#x27;, &#x27;call&#x27;, &#x27;teardown&#x27;]&quot;,<br/>        reraise: Optional[<br/>            Union[Type[BaseException], Tuple[Type[BaseException], ...]]<br/>        ] = None,<br/>    ) -&gt; &quot;CallInfo[TResult]&quot;:<br/>        excinfo = None<br/>        start = timing.time()<br/>        precise_start = timing.perf_counter()<br/>        try:<br/>&gt;           result: Optional[TResult] = func()<br/><br/>d:\python1\lib\site-packages\_pytest\runner.py:311: <br/>_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ <br/><br/>&gt;       lambda: ihook(item=item, **kwds), when=when, reraise=reraise<br/>    )<br/><br/>d:\python1\lib\site-packages\_pytest\runner.py:255: <br/>_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ <br/><br/>self = &lt;_HookCaller &#x27;pytest_runtest_call&#x27;&gt;, args = (), kwargs = {&#x27;item&#x27;: &lt;YamlItem 拉勾网测试&gt;}, notincall = set()<br/><br/>    def __call__(self, *args, **kwargs):<br/>        if args:<br/>            raise TypeError(&quot;hook calling supports only keyword arguments&quot;)<br/>        assert not self.is_historic()<br/>        if self.spec and self.spec.argnames:<br/>            notincall = (<br/>                set(self.spec.argnames) - set([&quot;__multicall__&quot;]) - set(kwargs.keys())<br/>            )<br/>            if notincall:<br/>                warnings.warn(<br/>                    &quot;Argument(s) {} which are declared in the hookspec &quot;<br/>                    &quot;can not be found in this hook call&quot;.format(tuple(notincall)),<br/>                    stacklevel=2,<br/>                )<br/>&gt;       return self._hookexec(self, self.get_hookimpls(), kwargs)<br/><br/>d:\python1\lib\site-packages\pluggy\hooks.py:286: <br/>_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ <br/><br/>self = &lt;_pytest.config.PytestPluginManager object at 0x000002B59DD83550&gt;, hook = &lt;_HookCaller &#x27;pytest_runtest_call&#x27;&gt;<br/>methods = [&lt;HookImpl plugin_name=&#x27;runner&#x27;, plugin=&lt;module &#x27;_pytest.runner&#x27; from &#x27;d:\\python1\\lib\\site-packages\\_pytest\\runne...ption&#x27;, plugin=&lt;module &#x27;_pytest.threadexception&#x27; from &#x27;d:\\python1\\lib\\site-packages\\_pytest\\threadexception.py&#x27;&gt;&gt;]<br/>kwargs = {&#x27;item&#x27;: &lt;YamlItem 拉勾网测试&gt;}<br/><br/>    def _hookexec(self, hook, methods, kwargs):<br/>        # called from all hookcaller instances.<br/>        # enable_tracing will set its own wrapping function at self._inner_hookexec<br/>&gt;       return self._inner_hookexec(hook, methods, kwargs)<br/><br/>d:\python1\lib\site-packages\pluggy\manager.py:93: <br/>_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ <br/><br/>hook = &lt;_HookCaller &#x27;pytest_runtest_call&#x27;&gt;<br/>methods = [&lt;HookImpl plugin_name=&#x27;runner&#x27;, plugin=&lt;module &#x27;_pytest.runner&#x27; from &#x27;d:\\python1\\lib\\site-packages\\_pytest\\runne...ption&#x27;, plugin=&lt;module &#x27;_pytest.threadexception&#x27; from &#x27;d:\\python1\\lib\\site-packages\\_pytest\\threadexception.py&#x27;&gt;&gt;]<br/>kwargs = {&#x27;item&#x27;: &lt;YamlItem 拉勾网测试&gt;}<br/><br/>&gt;   self._inner_hookexec = lambda hook, methods, kwargs: hook.multicall(<br/>        methods,<br/>        kwargs,<br/>        firstresult=hook.spec.opts.get(&quot;firstresult&quot;) if hook.spec else False,<br/>    )<br/><br/>d:\python1\lib\site-packages\pluggy\manager.py:84: <br/>_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ <br/><br/>hook_impls = [&lt;HookImpl plugin_name=&#x27;runner&#x27;, plugin=&lt;module &#x27;_pytest.runner&#x27; from &#x27;d:\\python1\\lib\\site-packages\\_pytest\\runne...ption&#x27;, plugin=&lt;module &#x27;_pytest.threadexception&#x27; from &#x27;d:\\python1\\lib\\site-packages\\_pytest\\threadexception.py&#x27;&gt;&gt;]<br/>caller_kwargs = {&#x27;item&#x27;: &lt;YamlItem 拉勾网测试&gt;}, firstresult = False<br/><br/>    def _multicall(hook_impls, caller_kwargs, firstresult=False):<br/>        &quot;&quot;&quot;Execute a call into multiple python functions/methods and return the<br/>        result(s).<br/>    <br/>        ``caller_kwargs`` comes from _HookCaller.__call__().<br/>        &quot;&quot;&quot;<br/>        __tracebackhide__ = True<br/>        results = []<br/>        excinfo = None<br/>        try:  # run impl and wrapper setup functions in a loop<br/>            teardowns = []<br/>            try:<br/>                for hook_impl in reversed(hook_impls):<br/>                    try:<br/>                        args = [caller_kwargs[argname] for argname in hook_impl.argnames]<br/>                    except KeyError:<br/>                        for argname in hook_impl.argnames:<br/>                            if argname not in caller_kwargs:<br/>                                raise HookCallError(<br/>                                    &quot;hook call must provide argument %r&quot; % (argname,)<br/>                                )<br/>    <br/>                    if hook_impl.hookwrapper:<br/>                        try:<br/>                            gen = hook_impl.function(*args)<br/>                            next(gen)  # first yield<br/>                            teardowns.append(gen)<br/>                        except StopIteration:<br/>                            _raise_wrapfail(gen, &quot;did not yield&quot;)<br/>                    else:<br/>                        res = hook_impl.function(*args)<br/>                        if res is not None:<br/>                            results.append(res)<br/>                            if firstresult:  # halt further impl calls<br/>                                break<br/>            except BaseException:<br/>                excinfo = sys.exc_info()<br/>        finally:<br/>            if firstresult:  # first result hooks return a single value<br/>                outcome = _Result(results[0] if results else None, excinfo)<br/>            else:<br/>                outcome = _Result(results, excinfo)<br/>    <br/>            # run all wrapper post-yield blocks<br/>            for gen in reversed(teardowns):<br/>                try:<br/>                    gen.send(outcome)<br/>                    _raise_wrapfail(gen, &quot;has second yield&quot;)<br/>                except StopIteration:<br/>                    pass<br/>    <br/>&gt;           return outcome.get_result()<br/><br/>d:\python1\lib\site-packages\pluggy\callers.py:208: <br/>_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ <br/><br/>self = &lt;pluggy.callers._Result object at 0x000002B59F618C70&gt;<br/><br/>    def get_result(self):<br/>        &quot;&quot;&quot;Get the result(s) for this hook call.<br/>    <br/>        If the hook was marked as a ``firstresult`` only a single value<br/>        will be returned otherwise a list of results.<br/>        &quot;&quot;&quot;<br/>        __tracebackhide__ = True<br/>        if self._excinfo is None:<br/>            return self._result<br/>        else:<br/>            ex = self._excinfo<br/>            if _py3:<br/>&gt;               raise ex[1].with_traceback(ex[2])<br/><br/>d:\python1\lib\site-packages\pluggy\callers.py:80: <br/>_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ <br/><br/>hook_impls = [&lt;HookImpl plugin_name=&#x27;runner&#x27;, plugin=&lt;module &#x27;_pytest.runner&#x27; from &#x27;d:\\python1\\lib\\site-packages\\_pytest\\runne...ption&#x27;, plugin=&lt;module &#x27;_pytest.threadexception&#x27; from &#x27;d:\\python1\\lib\\site-packages\\_pytest\\threadexception.py&#x27;&gt;&gt;]<br/>caller_kwargs = {&#x27;item&#x27;: &lt;YamlItem 拉勾网测试&gt;}, firstresult = False<br/><br/>    def _multicall(hook_impls, caller_kwargs, firstresult=False):<br/>        &quot;&quot;&quot;Execute a call into multiple python functions/methods and return the<br/>        result(s).<br/>    <br/>        ``caller_kwargs`` comes from _HookCaller.__call__().<br/>        &quot;&quot;&quot;<br/>        __tracebackhide__ = True<br/>        results = []<br/>        excinfo = None<br/>        try:  # run impl and wrapper setup functions in a loop<br/>            teardowns = []<br/>            try:<br/>                for hook_impl in reversed(hook_impls):<br/>                    try:<br/>                        args = [caller_kwargs[argname] for argname in hook_impl.argnames]<br/>                    except KeyError:<br/>                        for argname in hook_impl.argnames:<br/>                            if argname not in caller_kwargs:<br/>                                raise HookCallError(<br/>                                    &quot;hook call must provide argument %r&quot; % (argname,)<br/>                                )<br/>    <br/>                    if hook_impl.hookwrapper:<br/>                        try:<br/>                            gen = hook_impl.function(*args)<br/>                            next(gen)  # first yield<br/>                            teardowns.append(gen)<br/>                        except StopIteration:<br/>                            _raise_wrapfail(gen, &quot;did not yield&quot;)<br/>                    else:<br/>&gt;                       res = hook_impl.function(*args)<br/><br/>d:\python1\lib\site-packages\pluggy\callers.py:187: <br/>_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ <br/><br/>item = &lt;YamlItem 拉勾网测试&gt;<br/><br/>    def pytest_runtest_call(item: Item) -&gt; None:<br/>        _update_current_test_var(item, &quot;call&quot;)<br/>        try:<br/>            del sys.last_type<br/>            del sys.last_value<br/>            del sys.last_traceback<br/>        except AttributeError:<br/>            pass<br/>        try:<br/>            item.runtest()<br/>        except Exception as e:<br/>            # Store trace info to allow postmortem debugging<br/>            sys.last_type = type(e)<br/>            sys.last_value = e<br/>            assert e.__traceback__ is not None<br/>            # Skip *this* frame<br/>            sys.last_traceback = e.__traceback__.tb_next<br/>&gt;           raise e<br/><br/>d:\python1\lib\site-packages\_pytest\runner.py:170: <br/>_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ <br/><br/>item = &lt;YamlItem 拉勾网测试&gt;<br/><br/>    def pytest_runtest_call(item: Item) -&gt; None:<br/>        _update_current_test_var(item, &quot;call&quot;)<br/>        try:<br/>            del sys.last_type<br/>            del sys.last_value<br/>            del sys.last_traceback<br/>        except AttributeError:<br/>            pass<br/>        try:<br/>&gt;           item.runtest()<br/><br/>d:\python1\lib\site-packages\_pytest\runner.py:162: <br/>_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ <br/><br/>self = &lt;YamlItem 拉勾网测试&gt;<br/><br/>    def runtest(self):<br/>        # Do a deep copy because this sometimes still retains things from previous tests(?)<br/>        self.global_cfg = copy.deepcopy(load_global_cfg(self.config))<br/>    <br/>        self.global_cfg.setdefault(&quot;variables&quot;, {})<br/>    <br/>        load_plugins(self.global_cfg)<br/>    <br/>        self.global_cfg[&quot;tavern_internal&quot;] = {&quot;pytest_hook_caller&quot;: self.config.hook}<br/>    <br/>        # INTERNAL<br/>        # NOTE - now that we can &#x27;mark&#x27; tests, we could use pytest.mark.xfail<br/>        # instead. This doesn&#x27;t differentiate between an error in verification<br/>        # and an error when running the test though.<br/>        xfail = self.spec.get(&quot;_xfail&quot;, False)<br/>    <br/>        try:<br/>            fixture_values = self._load_fixture_values()<br/>            self.global_cfg[&quot;variables&quot;].update(fixture_values)<br/>    <br/>            call_hook(<br/>                self.global_cfg,<br/>                &quot;pytest_tavern_beta_before_every_test_run&quot;,<br/>                test_dict=self.spec,<br/>                variables=self.global_cfg[&quot;variables&quot;],<br/>            )<br/>    <br/>&gt;           verify_tests(self.spec)<br/><br/>d:\python1\lib\site-packages\tavern\testutils\pytesthook\item.py:184: <br/>_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ <br/><br/>test_spec = {&#x27;test_name&#x27;: &#x27;拉勾网测试&#x27;, &#x27;stages&#x27;: [{&#x27;name&#x27;: &#x27;请求拉勾网招聘信息&#x27;, &#x27;request&#x27;: {&#x27;url&#x27;: &#x27;https://www.lagou.com/jobs/v2/positionAjax...%B7&amp;kd=%E8%87%AA%E5%8A%A8%E5%8C%96%E6%B5%8B%E8%AF%95%E5%B7%A5%E7%A8%8B%E5%B8%88&#x27;}}, &#x27;response&#x27;: {&#x27;status_code&#x27;: 200}}]}<br/>with_plugins = True<br/><br/>    def verify_tests(test_spec, with_plugins=True):<br/>        &quot;&quot;&quot;Verify that a specific test block is correct<br/>    <br/>        Todo:<br/>            Load schema file once. Requires some caching of the file<br/>    <br/>        Args:<br/>            test_spec (dict): Test in dictionary form<br/>    <br/>        Raises:<br/>            BadSchemaError: Schema did not match<br/>        &quot;&quot;&quot;<br/>        here = os.path.dirname(os.path.abspath(__file__))<br/>    <br/>        schema_filename = os.path.join(here, &quot;tests.schema.yaml&quot;)<br/>        schema = load_schema_file(schema_filename, with_plugins)<br/>    <br/>&gt;       verify_generic(test_spec, schema)<br/><br/>d:\python1\lib\site-packages\tavern\schemas\files.py:152: <br/>_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ <br/><br/>to_verify = {&#x27;test_name&#x27;: &#x27;拉勾网测试&#x27;, &#x27;stages&#x27;: [{&#x27;name&#x27;: &#x27;请求拉勾网招聘信息&#x27;, &#x27;request&#x27;: {&#x27;url&#x27;: &#x27;https://www.lagou.com/jobs/v2/positionAjax...%B7&amp;kd=%E8%87%AA%E5%8A%A8%E5%8C%96%E6%B5%8B%E8%AF%95%E5%B7%A5%E7%A8%8B%E5%B8%88&#x27;}}, &#x27;response&#x27;: {&#x27;status_code&#x27;: 200}}]}<br/>schema = {&#x27;name&#x27;: &#x27;Test schema&#x27;, &#x27;desc&#x27;: &#x27;Matches test blocks&#x27;, &#x27;schema;any_request_json&#x27;: {&#x27;func&#x27;: &#x27;validate_request_json&#x27;, &#x27;t... &#x27;map&#x27;, &#x27;mapping&#x27;: {&#x27;username&#x27;: {&#x27;type&#x27;: &#x27;str&#x27;, &#x27;required&#x27;: True}, &#x27;password&#x27;: {&#x27;type&#x27;: &#x27;str&#x27;, &#x27;required&#x27;: False}}}}}}}<br/><br/>    def verify_generic(to_verify, schema):<br/>        &quot;&quot;&quot;Verify a generic file against a given schema<br/>    <br/>        Args:<br/>            to_verify (dict): Filename of source tests to check<br/>            schema (dict): Schema to verify against<br/>    <br/>        Raises:<br/>            BadSchemaError: Schema did not match<br/>        &quot;&quot;&quot;<br/>        logger.debug(&quot;Verifying %s against %s&quot;, to_verify, schema)<br/>    <br/>        here = os.path.dirname(os.path.abspath(__file__))<br/>        extension_module_filename = os.path.join(here, &quot;extensions.py&quot;)<br/>    <br/>        verifier = core.Core(<br/>            source_data=to_verify,<br/>            schema_data=schema,<br/>            extensions=[extension_module_filename],<br/>        )<br/>    <br/>        try:<br/>            verifier.validate()<br/>        except pykwalify.errors.PyKwalifyException as e:<br/>            logger.exception(&quot;Error validating %s&quot;, to_verify)<br/>&gt;           raise BadSchemaError() from e<br/><span class="error">E           tavern.util.exceptions.BadSchemaError</span><br/><br/>d:\python1\lib\site-packages\tavern\schemas\files.py:109: BadSchemaError<br/> -----------------------------Captured stderr setup------------------------------ <br/>--- Logging error ---
+Traceback (most recent call last):
+  File &quot;d:\python1\lib\logging\__init__.py&quot;, line 1082, in emit
+    stream.write(msg + self.terminator)
+OSError: [WinError 6] 句柄无效。
+Call stack:
+  File &quot;d:\python1\lib\runpy.py&quot;, line 197, in _run_module_as_main
+    return _run_code(code, main_globals, None,
+  File &quot;d:\python1\lib\runpy.py&quot;, line 87, in _run_code
+    exec(code, run_globals)
+  File &quot;D:\python1\Scripts\pytest.exe\__main__.py&quot;, line 7, in &lt;module&gt;
+    sys.exit(console_main())
+  File &quot;d:\python1\lib\site-packages\_pytest\config\__init__.py&quot;, line 185, in console_main
+    code = main()
+  File &quot;d:\python1\lib\site-packages\_pytest\config\__init__.py&quot;, line 162, in main
+    ret: Union[ExitCode, int] = config.hook.pytest_cmdline_main(
+  File &quot;d:\python1\lib\site-packages\pluggy\hooks.py&quot;, line 286, in __call__
+    return self._hookexec(self, self.get_hookimpls(), kwargs)
+  File &quot;d:\python1\lib\site-packages\pluggy\manager.py&quot;, line 93, in _hookexec
+    return self._inner_hookexec(hook, methods, kwargs)
+  File &quot;d:\python1\lib\site-packages\pluggy\manager.py&quot;, line 84, in &lt;lambda&gt;
+    self._inner_hookexec = lambda hook, methods, kwargs: hook.multicall(
+  File &quot;d:\python1\lib\site-packages\pluggy\callers.py&quot;, line 187, in _multicall
+    res = hook_impl.function(*args)
+  File &quot;d:\python1\lib\site-packages\_pytest\main.py&quot;, line 316, in pytest_cmdline_main
+    return wrap_session(config, _main)
+  File &quot;d:\python1\lib\site-packages\_pytest\main.py&quot;, line 269, in wrap_session
+    session.exitstatus = doit(config, session) or 0
+  File &quot;d:\python1\lib\site-packages\_pytest\main.py&quot;, line 323, in _main
+    config.hook.pytest_runtestloop(session=session)
+  File &quot;d:\python1\lib\site-packages\pluggy\hooks.py&quot;, line 286, in __call__
+    return self._hookexec(self, self.get_hookimpls(), kwargs)
+  File &quot;d:\python1\lib\site-packages\pluggy\manager.py&quot;, line 93, in _hookexec
+    return self._inner_hookexec(hook, methods, kwargs)
+  File &quot;d:\python1\lib\site-packages\pluggy\manager.py&quot;, line 84, in &lt;lambda&gt;
+    self._inner_hookexec = lambda hook, methods, kwargs: hook.multicall(
+  File &quot;d:\python1\lib\site-packages\pluggy\callers.py&quot;, line 187, in _multicall
+    res = hook_impl.function(*args)
+  File &quot;d:\python1\lib\site-packages\_pytest\main.py&quot;, line 348, in pytest_runtestloop
+    item.config.hook.pytest_runtest_protocol(item=item, nextitem=nextitem)
+  File &quot;d:\python1\lib\site-packages\pluggy\hooks.py&quot;, line 286, in __call__
+    return self._hookexec(self, self.get_hookimpls(), kwargs)
+  File &quot;d:\python1\lib\site-packages\pluggy\manager.py&quot;, line 93, in _hookexec
+    return self._inner_hookexec(hook, methods, kwargs)
+  File &quot;d:\python1\lib\site-packages\pluggy\manager.py&quot;, line 84, in &lt;lambda&gt;
+    self._inner_hookexec = lambda hook, methods, kwargs: hook.multicall(
+  File &quot;d:\python1\lib\site-packages\pluggy\callers.py&quot;, line 187, in _multicall
+    res = hook_impl.function(*args)
+  File &quot;d:\python1\lib\site-packages\_pytest\runner.py&quot;, line 109, in pytest_runtest_protocol
+    runtestprotocol(item, nextitem=nextitem)
+  File &quot;d:\python1\lib\site-packages\_pytest\runner.py&quot;, line 120, in runtestprotocol
+    rep = call_and_report(item, &quot;setup&quot;, log)
+  File &quot;d:\python1\lib\site-packages\_pytest\runner.py&quot;, line 215, in call_and_report
+    call = call_runtest_hook(item, when, **kwds)
+  File &quot;d:\python1\lib\site-packages\_pytest\runner.py&quot;, line 254, in call_runtest_hook
+    return CallInfo.from_call(
+  File &quot;d:\python1\lib\site-packages\_pytest\runner.py&quot;, line 311, in from_call
+    result: Optional[TResult] = func()
+  File &quot;d:\python1\lib\site-packages\_pytest\runner.py&quot;, line 255, in &lt;lambda&gt;
+    lambda: ihook(item=item, **kwds), when=when, reraise=reraise
+  File &quot;d:\python1\lib\site-packages\pluggy\hooks.py&quot;, line 286, in __call__
+    return self._hookexec(self, self.get_hookimpls(), kwargs)
+  File &quot;d:\python1\lib\site-packages\pluggy\manager.py&quot;, line 93, in _hookexec
+    return self._inner_hookexec(hook, methods, kwargs)
+  File &quot;d:\python1\lib\site-packages\pluggy\manager.py&quot;, line 84, in &lt;lambda&gt;
+    self._inner_hookexec = lambda hook, methods, kwargs: hook.multicall(
+  File &quot;d:\python1\lib\site-packages\pluggy\callers.py&quot;, line 187, in _multicall
+    res = hook_impl.function(*args)
+  File &quot;d:\python1\lib\site-packages\auto_checklog.py&quot;, line 21, in pytest_runtest_setup
+    test_steps.log_new_func(item.name, str(item.fspath) )
+  File &quot;d:\python1\lib\site-packages\test_steps\__init__.py&quot;, line 109, in log_new_func
+    __step_info.new_func(name, path)
+  File &quot;d:\python1\lib\site-packages\test_steps\__init__.py&quot;, line 87, in new_func
+    self.__log_case()
+  File &quot;d:\python1\lib\site-packages\test_steps\__init__.py&quot;, line 90, in __log_case
+    self.step_logger.info(&quot;------------------------------------------------------&quot;)
+Message: &#x27;------------------------------------------------------&#x27;
+Arguments: ()
+--- Logging error ---
+Traceback (most recent call last):
+  File &quot;d:\python1\lib\logging\__init__.py&quot;, line 1082, in emit
+    stream.write(msg + self.terminator)
+OSError: [WinError 6] 句柄无效。
+Call stack:
+  File &quot;d:\python1\lib\runpy.py&quot;, line 197, in _run_module_as_main
+    return _run_code(code, main_globals, None,
+  File &quot;d:\python1\lib\runpy.py&quot;, line 87, in _run_code
+    exec(code, run_globals)
+  File &quot;D:\python1\Scripts\pytest.exe\__main__.py&quot;, line 7, in &lt;module&gt;
+    sys.exit(console_main())
+  File &quot;d:\python1\lib\site-packages\_pytest\config\__init__.py&quot;, line 185, in console_main
+    code = main()
+  File &quot;d:\python1\lib\site-packages\_pytest\config\__init__.py&quot;, line 162, in main
+    ret: Union[ExitCode, int] = config.hook.pytest_cmdline_main(
+  File &quot;d:\python1\lib\site-packages\pluggy\hooks.py&quot;, line 286, in __call__
+    return self._hookexec(self, self.get_hookimpls(), kwargs)
+  File &quot;d:\python1\lib\site-packages\pluggy\manager.py&quot;, line 93, in _hookexec
+    return self._inner_hookexec(hook, methods, kwargs)
+  File &quot;d:\python1\lib\site-packages\pluggy\manager.py&quot;, line 84, in &lt;lambda&gt;
+    self._inner_hookexec = lambda hook, methods, kwargs: hook.multicall(
+  File &quot;d:\python1\lib\site-packages\pluggy\callers.py&quot;, line 187, in _multicall
+    res = hook_impl.function(*args)
+  File &quot;d:\python1\lib\site-packages\_pytest\main.py&quot;, line 316, in pytest_cmdline_main
+    return wrap_session(config, _main)
+  File &quot;d:\python1\lib\site-packages\_pytest\main.py&quot;, line 269, in wrap_session
+    session.exitstatus = doit(config, session) or 0
+  File &quot;d:\python1\lib\site-packages\_pytest\main.py&quot;, line 323, in _main
+    config.hook.pytest_runtestloop(session=session)
+  File &quot;d:\python1\lib\site-packages\pluggy\hooks.py&quot;, line 286, in __call__
+    return self._hookexec(self, self.get_hookimpls(), kwargs)
+  File &quot;d:\python1\lib\site-packages\pluggy\manager.py&quot;, line 93, in _hookexec
+    return self._inner_hookexec(hook, methods, kwargs)
+  File &quot;d:\python1\lib\site-packages\pluggy\manager.py&quot;, line 84, in &lt;lambda&gt;
+    self._inner_hookexec = lambda hook, methods, kwargs: hook.multicall(
+  File &quot;d:\python1\lib\site-packages\pluggy\callers.py&quot;, line 187, in _multicall
+    res = hook_impl.function(*args)
+  File &quot;d:\python1\lib\site-packages\_pytest\main.py&quot;, line 348, in pytest_runtestloop
+    item.config.hook.pytest_runtest_protocol(item=item, nextitem=nextitem)
+  File &quot;d:\python1\lib\site-packages\pluggy\hooks.py&quot;, line 286, in __call__
+    return self._hookexec(self, self.get_hookimpls(), kwargs)
+  File &quot;d:\python1\lib\site-packages\pluggy\manager.py&quot;, line 93, in _hookexec
+    return self._inner_hookexec(hook, methods, kwargs)
+  File &quot;d:\python1\lib\site-packages\pluggy\manager.py&quot;, line 84, in &lt;lambda&gt;
+    self._inner_hookexec = lambda hook, methods, kwargs: hook.multicall(
+  File &quot;d:\python1\lib\site-packages\pluggy\callers.py&quot;, line 187, in _multicall
+    res = hook_impl.function(*args)
+  File &quot;d:\python1\lib\site-packages\_pytest\runner.py&quot;, line 109, in pytest_runtest_protocol
+    runtestprotocol(item, nextitem=nextitem)
+  File &quot;d:\python1\lib\site-packages\_pytest\runner.py&quot;, line 120, in runtestprotocol
+    rep = call_and_report(item, &quot;setup&quot;, log)
+  File &quot;d:\python1\lib\site-packages\_pytest\runner.py&quot;, line 215, in call_and_report
+    call = call_runtest_hook(item, when, **kwds)
+  File &quot;d:\python1\lib\site-packages\_pytest\runner.py&quot;, line 254, in call_runtest_hook
+    return CallInfo.from_call(
+  File &quot;d:\python1\lib\site-packages\_pytest\runner.py&quot;, line 311, in from_call
+    result: Optional[TResult] = func()
+  File &quot;d:\python1\lib\site-packages\_pytest\runner.py&quot;, line 255, in &lt;lambda&gt;
+    lambda: ihook(item=item, **kwds), when=when, reraise=reraise
+  File &quot;d:\python1\lib\site-packages\pluggy\hooks.py&quot;, line 286, in __call__
+    return self._hookexec(self, self.get_hookimpls(), kwargs)
+  File &quot;d:\python1\lib\site-packages\pluggy\manager.py&quot;, line 93, in _hookexec
+    return self._inner_hookexec(hook, methods, kwargs)
+  File &quot;d:\python1\lib\site-packages\pluggy\manager.py&quot;, line 84, in &lt;lambda&gt;
+    self._inner_hookexec = lambda hook, methods, kwargs: hook.multicall(
+  File &quot;d:\python1\lib\site-packages\pluggy\callers.py&quot;, line 187, in _multicall
+    res = hook_impl.function(*args)
+  File &quot;d:\python1\lib\site-packages\auto_checklog.py&quot;, line 21, in pytest_runtest_setup
+    test_steps.log_new_func(item.name, str(item.fspath) )
+  File &quot;d:\python1\lib\site-packages\test_steps\__init__.py&quot;, line 109, in log_new_func
+    __step_info.new_func(name, path)
+  File &quot;d:\python1\lib\site-packages\test_steps\__init__.py&quot;, line 87, in new_func
+    self.__log_case()
+  File &quot;d:\python1\lib\site-packages\test_steps\__init__.py&quot;, line 91, in __log_case
+    self.step_logger.info(&quot;Func %s in file: %s&quot; % (self.case_name, self.file_name))
+Message: &#x27;Func 拉勾网测试 in file: D:\\script_python\\pythonProject1\\Tavern实战\\six\\test_demo.tavern.yaml&#x27;
+Arguments: ()
+<br/> -------------------------------Captured log setup------------------------------- <br/>INFO     Test:__init__.py:90 ------------------------------------------------------
+INFO     Test:__init__.py:91 Func 拉勾网测试 in file: D:\script_python\pythonProject1\Tavern实战\six\test_demo.tavern.yaml<br/> -------------------------------Captured log call-------------------------------- <br/>ERROR    pykwalify.core:core.py:190 validation.invalid
+ERROR    pykwalify.core:core.py:191  --- All found errors ---
+ERROR    pykwalify.core:core.py:192 [&quot;Key &#x27;methd&#x27; does not match any regex &#x27;params|headers&#x27;. Path: &#x27;/stages/0/request&#x27;&quot;, &quot;Cannot find required key &#x27;type&#x27;. Path: &#x27;/stages/0&#x27;&quot;, &quot;Cannot find required key &#x27;id&#x27;. Path: &#x27;/stages/0&#x27;&quot;, &quot;Key &#x27;name&#x27; was not defined. Path: &#x27;/stages/0&#x27;&quot;, &quot;Key &#x27;request&#x27; was not defined. Path: &#x27;/stages/0&#x27;&quot;, &quot;Key &#x27;response&#x27; was not defined. Path: &#x27;/stages/0&#x27;&quot;]
+ERROR    tavern.schemas.files:files.py:108 Error validating {&#x27;test_name&#x27;: &#x27;拉勾网测试&#x27;, &#x27;stages&#x27;: [{&#x27;name&#x27;: &#x27;请求拉勾网招聘信息&#x27;, &#x27;request&#x27;: {&#x27;url&#x27;: &#x27;https://www.lagou.com/jobs/v2/positionAjax.json&#x27;, &#x27;methd&#x27;: &#x27;POST&#x27;, &#x27;data&#x27;: {&#x27;first&#x27;: &#x27;Ture&#x27;, &#x27;city&#x27;: &#x27;上海&#x27;, &#x27;kd&#x27;: &#x27;自动化测试工程师&#x27;, &#x27;cl&#x27;: False}, &#x27;headers&#x27;: {&#x27;user-agent&#x27;: &#x27;Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.107 Safari/537.36 Edg/92.0.902.55&#x27;, &#x27;content-type&#x27;: &#x27;application/x-www-form-urlencoded; charset=UTF-8&#x27;, &#x27;cookie&#x27;: &#x27;user_trace_token=20210722175302-3494da11-d18a-46de-8341-8aced6d47045; _ga=GA1.2.2096563177.1626947584; LGUID=20210722175303-d9107b08-2bcb-4bb5-bc4f-35e54a788640; gate_login_token=cceaace95ccbd4d0e121a9f7f342822144583ebaccb2bd98; LG_LOGIN_USER_ID=1eee7fee0ecaa4b6c3f14b654026b2a120daaea567453a1a; LG_HAS_LOGIN=1; showExpriedIndex=1; showExpriedCompanyHome=1; showExpriedMyPublish=1; hasDeliver=98; privacyPolicyPopup=false; index_location_city=%E4%B8%8A%E6%B5%B7; RECOMMEND_TIP=true; WEBTJ-ID=20210727141940-17ae69e6d1c43-0472d410165dc-7e687a6e-1338645-17ae69e6d1d56d; sensorsdata2015session=%7B%7D; JSESSIONID=ABAAAECABFAACEAC1E637D9584A688359ED1F43AAE160CE; _putrc=402C16F72BC8F765; login=true; unick=%E6%BD%98%E4%B8%BD; Hm_lvt_4233e74dff0ae5bd0a3d81c6ccf756e6=1626947584,1626947589,1627351788,1627373850; __lg_stoken__=0c0f376f3363c34808793bf4de187381f6ad6cd027e0ea854ae092758faa7791b0700e2928e2dbb23942e48caf0d404d6b31e91b844e5952a7eeab38301fda11101a90c44df0; X_HTTP_TOKEN=60e423010da79d53808745726131399bff866ff033; __SAFETY_CLOSE_TIME__8556999=1; _gat=1; PRE_UTM=; PRE_HOST=; PRE_LAND=https%3A%2F%2Fwww.lagou.com%2Fjobs%2F7893881.html; sensorsdata2015jssdkcross=%7B%22distinct_id%22%3A%228556999%22%2C%22%24device_id%22%3A%2217acda222f595f-07362a4c19c9fc-7a697f6c-1338645-17acda222f7bd5%22%2C%22props%22%3A%7B%22%24latest_traffic_source_type%22%3A%22%E7%9B%B4%E6%8E%A5%E6%B5%81%E9%87%8F%22%2C%22%24latest_search_keyword%22%3A%22%E6%9C%AA%E5%8F%96%E5%88%B0%E5%80%BC_%E7%9B%B4%E6%8E%A5%E6%89%93%E5%BC%80%22%2C%22%24latest_referrer%22%3A%22%22%2C%22%24os%22%3A%22Windows%22%2C%22%24browser%22%3A%22Chrome%22%2C%22%24browser_version%22%3A%2292.0.4515.107%22%2C%22lagou_company_id%22%3A%22%22%7D%2C%22first_id%22%3A%2217acda222f595f-07362a4c19c9fc-7a697f6c-1338645-17acda222f7bd5%22%7D; LGSID=20210729163648-36bfbd99-5cbc-4276-a8a8-fb8dd9b82d49; PRE_SITE=https%3A%2F%2Fwww.lagou.com%2Fcommon-sec%2Fsecurity-check.html%3Fseed%3D2B57EDB14EFAFBFF8C7B30D473FE7ABAA6BFF744F802A4C96347F15EDC78B1A3178F3CC3609E768C2B24CBFD55AFA985%26ts%3D16275478076946%26name%3D0c0f376f3363%26callbackUrl%3Dhttps%253A%252F%252Fwww.lagou.com%252Fjobs%252F7893881.html%26srcReferer%3Dhttps%253A%252F%252Fwww.lagou.com%252Fwn%252Fjobs%253Fpx%253Dnew%2526pn%253D1%2526cl%253Dfalse%2526fromSearch%253Dtrue%2526city%253D%2525E4%2525B8%25258A%2525E6%2525B5%2525B7%2526kd%253D%2525E8%252587%2525AA%2525E5%25258A%2525A8%2525E5%25258C%252596%2525E6%2525B5%25258B%2525E8%2525AF%252595%2525E5%2525B7%2525A5%2525E7%2525A8%25258B%2525E5%2525B8%252588; LGRID=20210729163648-5fcf6eab-ce5f-4227-862c-ecf17b257d17; Hm_lpvt_4233e74dff0ae5bd0a3d81c6ccf756e6=1627547809; _gid=GA1.2.175428069.1627547809&#x27;, &#x27;referer&#x27;: &#x27;https://www.lagou.com/wn/jobs?px=new&amp;pn=1&amp;cl=false&amp;fromSearch=true&amp;city=%E4%B8%8A%E6%B5%B7&amp;kd=%E8%87%AA%E5%8A%A8%E5%8C%96%E6%B5%8B%E8%AF%95%E5%B7%A5%E7%A8%8B%E5%B8%88&#x27;}}, &#x27;response&#x27;: {&#x27;status_code&#x27;: 200}}]}
+Traceback (most recent call last):
+  File &quot;d:\python1\lib\site-packages\tavern\schemas\files.py&quot;, line 106, in verify_generic
+    verifier.validate()
+  File &quot;d:\python1\lib\site-packages\pykwalify\core.py&quot;, line 194, in validate
+    raise SchemaError(u&quot;Schema validation failed:\n - {error_msg}.&quot;.format(
+pykwalify.errors.SchemaError: &lt;SchemaError: error code 2: Schema validation failed:
+ - Key &#x27;methd&#x27; does not match any regex &#x27;params|headers&#x27;. Path: &#x27;/stages/0/request&#x27;.
+ - Cannot find required key &#x27;type&#x27;. Path: &#x27;/stages/0&#x27;.
+ - Cannot find required key &#x27;id&#x27;. Path: &#x27;/stages/0&#x27;.
+ - Key &#x27;name&#x27; was not defined. Path: &#x27;/stages/0&#x27;.
+ - Key &#x27;request&#x27; was not defined. Path: &#x27;/stages/0&#x27;.
+ - Key &#x27;response&#x27; was not defined. Path: &#x27;/stages/0&#x27;.: Path: &#x27;/&#x27;&gt;<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_demo.tavern.yaml::å¨é¨è¾å¥æ­£ç¡®ä¿¡æ¯éªè¯æ¥å£</td>
+          <td class="col-duration">0.16</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -----------------------------Captured stderr setup------------------------------ <br/>--- Logging error ---
+Traceback (most recent call last):
+  File &quot;d:\python1\lib\logging\__init__.py&quot;, line 1082, in emit
+    stream.write(msg + self.terminator)
+OSError: [WinError 6] 句柄无效。
+Call stack:
+  File &quot;d:\python1\lib\runpy.py&quot;, line 197, in _run_module_as_main
+    return _run_code(code, main_globals, None,
+  File &quot;d:\python1\lib\runpy.py&quot;, line 87, in _run_code
+    exec(code, run_globals)
+  File &quot;D:\python1\Scripts\pytest.exe\__main__.py&quot;, line 7, in &lt;module&gt;
+    sys.exit(console_main())
+  File &quot;d:\python1\lib\site-packages\_pytest\config\__init__.py&quot;, line 185, in console_main
+    code = main()
+  File &quot;d:\python1\lib\site-packages\_pytest\config\__init__.py&quot;, line 162, in main
+    ret: Union[ExitCode, int] = config.hook.pytest_cmdline_main(
+  File &quot;d:\python1\lib\site-packages\pluggy\hooks.py&quot;, line 286, in __call__
+    return self._hookexec(self, self.get_hookimpls(), kwargs)
+  File &quot;d:\python1\lib\site-packages\pluggy\manager.py&quot;, line 93, in _hookexec
+    return self._inner_hookexec(hook, methods, kwargs)
+  File &quot;d:\python1\lib\site-packages\pluggy\manager.py&quot;, line 84, in &lt;lambda&gt;
+    self._inner_hookexec = lambda hook, methods, kwargs: hook.multicall(
+  File &quot;d:\python1\lib\site-packages\pluggy\callers.py&quot;, line 187, in _multicall
+    res = hook_impl.function(*args)
+  File &quot;d:\python1\lib\site-packages\_pytest\main.py&quot;, line 316, in pytest_cmdline_main
+    return wrap_session(config, _main)
+  File &quot;d:\python1\lib\site-packages\_pytest\main.py&quot;, line 269, in wrap_session
+    session.exitstatus = doit(config, session) or 0
+  File &quot;d:\python1\lib\site-packages\_pytest\main.py&quot;, line 323, in _main
+    config.hook.pytest_runtestloop(session=session)
+  File &quot;d:\python1\lib\site-packages\pluggy\hooks.py&quot;, line 286, in __call__
+    return self._hookexec(self, self.get_hookimpls(), kwargs)
+  File &quot;d:\python1\lib\site-packages\pluggy\manager.py&quot;, line 93, in _hookexec
+    return self._inner_hookexec(hook, methods, kwargs)
+  File &quot;d:\python1\lib\site-packages\pluggy\manager.py&quot;, line 84, in &lt;lambda&gt;
+    self._inner_hookexec = lambda hook, methods, kwargs: hook.multicall(
+  File &quot;d:\python1\lib\site-packages\pluggy\callers.py&quot;, line 187, in _multicall
+    res = hook_impl.function(*args)
+  File &quot;d:\python1\lib\site-packages\_pytest\main.py&quot;, line 348, in pytest_runtestloop
+    item.config.hook.pytest_runtest_protocol(item=item, nextitem=nextitem)
+  File &quot;d:\python1\lib\site-packages\pluggy\hooks.py&quot;, line 286, in __call__
+    return self._hookexec(self, self.get_hookimpls(), kwargs)
+  File &quot;d:\python1\lib\site-packages\pluggy\manager.py&quot;, line 93, in _hookexec
+    return self._inner_hookexec(hook, methods, kwargs)
+  File &quot;d:\python1\lib\site-packages\pluggy\manager.py&quot;, line 84, in &lt;lambda&gt;
+    self._inner_hookexec = lambda hook, methods, kwargs: hook.multicall(
+  File &quot;d:\python1\lib\site-packages\pluggy\callers.py&quot;, line 187, in _multicall
+    res = hook_impl.function(*args)
+  File &quot;d:\python1\lib\site-packages\_pytest\runner.py&quot;, line 109, in pytest_runtest_protocol
+    runtestprotocol(item, nextitem=nextitem)
+  File &quot;d:\python1\lib\site-packages\_pytest\runner.py&quot;, line 120, in runtestprotocol
+    rep = call_and_report(item, &quot;setup&quot;, log)
+  File &quot;d:\python1\lib\site-packages\_pytest\runner.py&quot;, line 215, in call_and_report
+    call = call_runtest_hook(item, when, **kwds)
+  File &quot;d:\python1\lib\site-packages\_pytest\runner.py&quot;, line 254, in call_runtest_hook
+    return CallInfo.from_call(
+  File &quot;d:\python1\lib\site-packages\_pytest\runner.py&quot;, line 311, in from_call
+    result: Optional[TResult] = func()
+  File &quot;d:\python1\lib\site-packages\_pytest\runner.py&quot;, line 255, in &lt;lambda&gt;
+    lambda: ihook(item=item, **kwds), when=when, reraise=reraise
+  File &quot;d:\python1\lib\site-packages\pluggy\hooks.py&quot;, line 286, in __call__
+    return self._hookexec(self, self.get_hookimpls(), kwargs)
+  File &quot;d:\python1\lib\site-packages\pluggy\manager.py&quot;, line 93, in _hookexec
+    return self._inner_hookexec(hook, methods, kwargs)
+  File &quot;d:\python1\lib\site-packages\pluggy\manager.py&quot;, line 84, in &lt;lambda&gt;
+    self._inner_hookexec = lambda hook, methods, kwargs: hook.multicall(
+  File &quot;d:\python1\lib\site-packages\pluggy\callers.py&quot;, line 187, in _multicall
+    res = hook_impl.function(*args)
+  File &quot;d:\python1\lib\site-packages\auto_checklog.py&quot;, line 21, in pytest_runtest_setup
+    test_steps.log_new_func(item.name, str(item.fspath) )
+  File &quot;d:\python1\lib\site-packages\test_steps\__init__.py&quot;, line 109, in log_new_func
+    __step_info.new_func(name, path)
+  File &quot;d:\python1\lib\site-packages\test_steps\__init__.py&quot;, line 87, in new_func
+    self.__log_case()
+  File &quot;d:\python1\lib\site-packages\test_steps\__init__.py&quot;, line 90, in __log_case
+    self.step_logger.info(&quot;------------------------------------------------------&quot;)
+Message: &#x27;------------------------------------------------------&#x27;
+Arguments: ()
+--- Logging error ---
+Traceback (most recent call last):
+  File &quot;d:\python1\lib\logging\__init__.py&quot;, line 1082, in emit
+    stream.write(msg + self.terminator)
+OSError: [WinError 6] 句柄无效。
+Call stack:
+  File &quot;d:\python1\lib\runpy.py&quot;, line 197, in _run_module_as_main
+    return _run_code(code, main_globals, None,
+  File &quot;d:\python1\lib\runpy.py&quot;, line 87, in _run_code
+    exec(code, run_globals)
+  File &quot;D:\python1\Scripts\pytest.exe\__main__.py&quot;, line 7, in &lt;module&gt;
+    sys.exit(console_main())
+  File &quot;d:\python1\lib\site-packages\_pytest\config\__init__.py&quot;, line 185, in console_main
+    code = main()
+  File &quot;d:\python1\lib\site-packages\_pytest\config\__init__.py&quot;, line 162, in main
+    ret: Union[ExitCode, int] = config.hook.pytest_cmdline_main(
+  File &quot;d:\python1\lib\site-packages\pluggy\hooks.py&quot;, line 286, in __call__
+    return self._hookexec(self, self.get_hookimpls(), kwargs)
+  File &quot;d:\python1\lib\site-packages\pluggy\manager.py&quot;, line 93, in _hookexec
+    return self._inner_hookexec(hook, methods, kwargs)
+  File &quot;d:\python1\lib\site-packages\pluggy\manager.py&quot;, line 84, in &lt;lambda&gt;
+    self._inner_hookexec = lambda hook, methods, kwargs: hook.multicall(
+  File &quot;d:\python1\lib\site-packages\pluggy\callers.py&quot;, line 187, in _multicall
+    res = hook_impl.function(*args)
+  File &quot;d:\python1\lib\site-packages\_pytest\main.py&quot;, line 316, in pytest_cmdline_main
+    return wrap_session(config, _main)
+  File &quot;d:\python1\lib\site-packages\_pytest\main.py&quot;, line 269, in wrap_session
+    session.exitstatus = doit(config, session) or 0
+  File &quot;d:\python1\lib\site-packages\_pytest\main.py&quot;, line 323, in _main
+    config.hook.pytest_runtestloop(session=session)
+  File &quot;d:\python1\lib\site-packages\pluggy\hooks.py&quot;, line 286, in __call__
+    return self._hookexec(self, self.get_hookimpls(), kwargs)
+  File &quot;d:\python1\lib\site-packages\pluggy\manager.py&quot;, line 93, in _hookexec
+    return self._inner_hookexec(hook, methods, kwargs)
+  File &quot;d:\python1\lib\site-packages\pluggy\manager.py&quot;, line 84, in &lt;lambda&gt;
+    self._inner_hookexec = lambda hook, methods, kwargs: hook.multicall(
+  File &quot;d:\python1\lib\site-packages\pluggy\callers.py&quot;, line 187, in _multicall
+    res = hook_impl.function(*args)
+  File &quot;d:\python1\lib\site-packages\_pytest\main.py&quot;, line 348, in pytest_runtestloop
+    item.config.hook.pytest_runtest_protocol(item=item, nextitem=nextitem)
+  File &quot;d:\python1\lib\site-packages\pluggy\hooks.py&quot;, line 286, in __call__
+    return self._hookexec(self, self.get_hookimpls(), kwargs)
+  File &quot;d:\python1\lib\site-packages\pluggy\manager.py&quot;, line 93, in _hookexec
+    return self._inner_hookexec(hook, methods, kwargs)
+  File &quot;d:\python1\lib\site-packages\pluggy\manager.py&quot;, line 84, in &lt;lambda&gt;
+    self._inner_hookexec = lambda hook, methods, kwargs: hook.multicall(
+  File &quot;d:\python1\lib\site-packages\pluggy\callers.py&quot;, line 187, in _multicall
+    res = hook_impl.function(*args)
+  File &quot;d:\python1\lib\site-packages\_pytest\runner.py&quot;, line 109, in pytest_runtest_protocol
+    runtestprotocol(item, nextitem=nextitem)
+  File &quot;d:\python1\lib\site-packages\_pytest\runner.py&quot;, line 120, in runtestprotocol
+    rep = call_and_report(item, &quot;setup&quot;, log)
+  File &quot;d:\python1\lib\site-packages\_pytest\runner.py&quot;, line 215, in call_and_report
+    call = call_runtest_hook(item, when, **kwds)
+  File &quot;d:\python1\lib\site-packages\_pytest\runner.py&quot;, line 254, in call_runtest_hook
+    return CallInfo.from_call(
+  File &quot;d:\python1\lib\site-packages\_pytest\runner.py&quot;, line 311, in from_call
+    result: Optional[TResult] = func()
+  File &quot;d:\python1\lib\site-packages\_pytest\runner.py&quot;, line 255, in &lt;lambda&gt;
+    lambda: ihook(item=item, **kwds), when=when, reraise=reraise
+  File &quot;d:\python1\lib\site-packages\pluggy\hooks.py&quot;, line 286, in __call__
+    return self._hookexec(self, self.get_hookimpls(), kwargs)
+  File &quot;d:\python1\lib\site-packages\pluggy\manager.py&quot;, line 93, in _hookexec
+    return self._inner_hookexec(hook, methods, kwargs)
+  File &quot;d:\python1\lib\site-packages\pluggy\manager.py&quot;, line 84, in &lt;lambda&gt;
+    self._inner_hookexec = lambda hook, methods, kwargs: hook.multicall(
+  File &quot;d:\python1\lib\site-packages\pluggy\callers.py&quot;, line 187, in _multicall
+    res = hook_impl.function(*args)
+  File &quot;d:\python1\lib\site-packages\auto_checklog.py&quot;, line 21, in pytest_runtest_setup
+    test_steps.log_new_func(item.name, str(item.fspath) )
+  File &quot;d:\python1\lib\site-packages\test_steps\__init__.py&quot;, line 109, in log_new_func
+    __step_info.new_func(name, path)
+  File &quot;d:\python1\lib\site-packages\test_steps\__init__.py&quot;, line 87, in new_func
+    self.__log_case()
+  File &quot;d:\python1\lib\site-packages\test_steps\__init__.py&quot;, line 91, in __log_case
+    self.step_logger.info(&quot;Func %s in file: %s&quot; % (self.case_name, self.file_name))
+Message: &#x27;Func 全部输入正确信息验证接口 in file: D:\\script_python\\pythonProject1\\Tavern实战\\six\\test_demo.tavern.yaml&#x27;
+Arguments: ()
+<br/> -------------------------------Captured log setup------------------------------- <br/>INFO     Test:__init__.py:90 ------------------------------------------------------
+INFO     Test:__init__.py:91 Func 全部输入正确信息验证接口 in file: D:\script_python\pythonProject1\Tavern实战\six\test_demo.tavern.yaml<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_demo.tavern.yaml::éªè¯ç¨æ·åä¸è½ä¸ºç©ºçæµè¯</td>
+          <td class="col-duration">0.01</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -----------------------------Captured stderr setup------------------------------ <br/>--- Logging error ---
+Traceback (most recent call last):
+  File &quot;d:\python1\lib\logging\__init__.py&quot;, line 1082, in emit
+    stream.write(msg + self.terminator)
+OSError: [WinError 6] 句柄无效。
+Call stack:
+  File &quot;d:\python1\lib\runpy.py&quot;, line 197, in _run_module_as_main
+    return _run_code(code, main_globals, None,
+  File &quot;d:\python1\lib\runpy.py&quot;, line 87, in _run_code
+    exec(code, run_globals)
+  File &quot;D:\python1\Scripts\pytest.exe\__main__.py&quot;, line 7, in &lt;module&gt;
+    sys.exit(console_main())
+  File &quot;d:\python1\lib\site-packages\_pytest\config\__init__.py&quot;, line 185, in console_main
+    code = main()
+  File &quot;d:\python1\lib\site-packages\_pytest\config\__init__.py&quot;, line 162, in main
+    ret: Union[ExitCode, int] = config.hook.pytest_cmdline_main(
+  File &quot;d:\python1\lib\site-packages\pluggy\hooks.py&quot;, line 286, in __call__
+    return self._hookexec(self, self.get_hookimpls(), kwargs)
+  File &quot;d:\python1\lib\site-packages\pluggy\manager.py&quot;, line 93, in _hookexec
+    return self._inner_hookexec(hook, methods, kwargs)
+  File &quot;d:\python1\lib\site-packages\pluggy\manager.py&quot;, line 84, in &lt;lambda&gt;
+    self._inner_hookexec = lambda hook, methods, kwargs: hook.multicall(
+  File &quot;d:\python1\lib\site-packages\pluggy\callers.py&quot;, line 187, in _multicall
+    res = hook_impl.function(*args)
+  File &quot;d:\python1\lib\site-packages\_pytest\main.py&quot;, line 316, in pytest_cmdline_main
+    return wrap_session(config, _main)
+  File &quot;d:\python1\lib\site-packages\_pytest\main.py&quot;, line 269, in wrap_session
+    session.exitstatus = doit(config, session) or 0
+  File &quot;d:\python1\lib\site-packages\_pytest\main.py&quot;, line 323, in _main
+    config.hook.pytest_runtestloop(session=session)
+  File &quot;d:\python1\lib\site-packages\pluggy\hooks.py&quot;, line 286, in __call__
+    return self._hookexec(self, self.get_hookimpls(), kwargs)
+  File &quot;d:\python1\lib\site-packages\pluggy\manager.py&quot;, line 93, in _hookexec
+    return self._inner_hookexec(hook, methods, kwargs)
+  File &quot;d:\python1\lib\site-packages\pluggy\manager.py&quot;, line 84, in &lt;lambda&gt;
+    self._inner_hookexec = lambda hook, methods, kwargs: hook.multicall(
+  File &quot;d:\python1\lib\site-packages\pluggy\callers.py&quot;, line 187, in _multicall
+    res = hook_impl.function(*args)
+  File &quot;d:\python1\lib\site-packages\_pytest\main.py&quot;, line 348, in pytest_runtestloop
+    item.config.hook.pytest_runtest_protocol(item=item, nextitem=nextitem)
+  File &quot;d:\python1\lib\site-packages\pluggy\hooks.py&quot;, line 286, in __call__
+    return self._hookexec(self, self.get_hookimpls(), kwargs)
+  File &quot;d:\python1\lib\site-packages\pluggy\manager.py&quot;, line 93, in _hookexec
+    return self._inner_hookexec(hook, methods, kwargs)
+  File &quot;d:\python1\lib\site-packages\pluggy\manager.py&quot;, line 84, in &lt;lambda&gt;
+    self._inner_hookexec = lambda hook, methods, kwargs: hook.multicall(
+  File &quot;d:\python1\lib\site-packages\pluggy\callers.py&quot;, line 187, in _multicall
+    res = hook_impl.function(*args)
+  File &quot;d:\python1\lib\site-packages\_pytest\runner.py&quot;, line 109, in pytest_runtest_protocol
+    runtestprotocol(item, nextitem=nextitem)
+  File &quot;d:\python1\lib\site-packages\_pytest\runner.py&quot;, line 120, in runtestprotocol
+    rep = call_and_report(item, &quot;setup&quot;, log)
+  File &quot;d:\python1\lib\site-packages\_pytest\runner.py&quot;, line 215, in call_and_report
+    call = call_runtest_hook(item, when, **kwds)
+  File &quot;d:\python1\lib\site-packages\_pytest\runner.py&quot;, line 254, in call_runtest_hook
+    return CallInfo.from_call(
+  File &quot;d:\python1\lib\site-packages\_pytest\runner.py&quot;, line 311, in from_call
+    result: Optional[TResult] = func()
+  File &quot;d:\python1\lib\site-packages\_pytest\runner.py&quot;, line 255, in &lt;lambda&gt;
+    lambda: ihook(item=item, **kwds), when=when, reraise=reraise
+  File &quot;d:\python1\lib\site-packages\pluggy\hooks.py&quot;, line 286, in __call__
+    return self._hookexec(self, self.get_hookimpls(), kwargs)
+  File &quot;d:\python1\lib\site-packages\pluggy\manager.py&quot;, line 93, in _hookexec
+    return self._inner_hookexec(hook, methods, kwargs)
+  File &quot;d:\python1\lib\site-packages\pluggy\manager.py&quot;, line 84, in &lt;lambda&gt;
+    self._inner_hookexec = lambda hook, methods, kwargs: hook.multicall(
+  File &quot;d:\python1\lib\site-packages\pluggy\callers.py&quot;, line 187, in _multicall
+    res = hook_impl.function(*args)
+  File &quot;d:\python1\lib\site-packages\auto_checklog.py&quot;, line 21, in pytest_runtest_setup
+    test_steps.log_new_func(item.name, str(item.fspath) )
+  File &quot;d:\python1\lib\site-packages\test_steps\__init__.py&quot;, line 109, in log_new_func
+    __step_info.new_func(name, path)
+  File &quot;d:\python1\lib\site-packages\test_steps\__init__.py&quot;, line 87, in new_func
+    self.__log_case()
+  File &quot;d:\python1\lib\site-packages\test_steps\__init__.py&quot;, line 90, in __log_case
+    self.step_logger.info(&quot;------------------------------------------------------&quot;)
+Message: &#x27;------------------------------------------------------&#x27;
+Arguments: ()
+--- Logging error ---
+Traceback (most recent call last):
+  File &quot;d:\python1\lib\logging\__init__.py&quot;, line 1082, in emit
+    stream.write(msg + self.terminator)
+OSError: [WinError 6] 句柄无效。
+Call stack:
+  File &quot;d:\python1\lib\runpy.py&quot;, line 197, in _run_module_as_main
+    return _run_code(code, main_globals, None,
+  File &quot;d:\python1\lib\runpy.py&quot;, line 87, in _run_code
+    exec(code, run_globals)
+  File &quot;D:\python1\Scripts\pytest.exe\__main__.py&quot;, line 7, in &lt;module&gt;
+    sys.exit(console_main())
+  File &quot;d:\python1\lib\site-packages\_pytest\config\__init__.py&quot;, line 185, in console_main
+    code = main()
+  File &quot;d:\python1\lib\site-packages\_pytest\config\__init__.py&quot;, line 162, in main
+    ret: Union[ExitCode, int] = config.hook.pytest_cmdline_main(
+  File &quot;d:\python1\lib\site-packages\pluggy\hooks.py&quot;, line 286, in __call__
+    return self._hookexec(self, self.get_hookimpls(), kwargs)
+  File &quot;d:\python1\lib\site-packages\pluggy\manager.py&quot;, line 93, in _hookexec
+    return self._inner_hookexec(hook, methods, kwargs)
+  File &quot;d:\python1\lib\site-packages\pluggy\manager.py&quot;, line 84, in &lt;lambda&gt;
+    self._inner_hookexec = lambda hook, methods, kwargs: hook.multicall(
+  File &quot;d:\python1\lib\site-packages\pluggy\callers.py&quot;, line 187, in _multicall
+    res = hook_impl.function(*args)
+  File &quot;d:\python1\lib\site-packages\_pytest\main.py&quot;, line 316, in pytest_cmdline_main
+    return wrap_session(config, _main)
+  File &quot;d:\python1\lib\site-packages\_pytest\main.py&quot;, line 269, in wrap_session
+    session.exitstatus = doit(config, session) or 0
+  File &quot;d:\python1\lib\site-packages\_pytest\main.py&quot;, line 323, in _main
+    config.hook.pytest_runtestloop(session=session)
+  File &quot;d:\python1\lib\site-packages\pluggy\hooks.py&quot;, line 286, in __call__
+    return self._hookexec(self, self.get_hookimpls(), kwargs)
+  File &quot;d:\python1\lib\site-packages\pluggy\manager.py&quot;, line 93, in _hookexec
+    return self._inner_hookexec(hook, methods, kwargs)
+  File &quot;d:\python1\lib\site-packages\pluggy\manager.py&quot;, line 84, in &lt;lambda&gt;
+    self._inner_hookexec = lambda hook, methods, kwargs: hook.multicall(
+  File &quot;d:\python1\lib\site-packages\pluggy\callers.py&quot;, line 187, in _multicall
+    res = hook_impl.function(*args)
+  File &quot;d:\python1\lib\site-packages\_pytest\main.py&quot;, line 348, in pytest_runtestloop
+    item.config.hook.pytest_runtest_protocol(item=item, nextitem=nextitem)
+  File &quot;d:\python1\lib\site-packages\pluggy\hooks.py&quot;, line 286, in __call__
+    return self._hookexec(self, self.get_hookimpls(), kwargs)
+  File &quot;d:\python1\lib\site-packages\pluggy\manager.py&quot;, line 93, in _hookexec
+    return self._inner_hookexec(hook, methods, kwargs)
+  File &quot;d:\python1\lib\site-packages\pluggy\manager.py&quot;, line 84, in &lt;lambda&gt;
+    self._inner_hookexec = lambda hook, methods, kwargs: hook.multicall(
+  File &quot;d:\python1\lib\site-packages\pluggy\callers.py&quot;, line 187, in _multicall
+    res = hook_impl.function(*args)
+  File &quot;d:\python1\lib\site-packages\_pytest\runner.py&quot;, line 109, in pytest_runtest_protocol
+    runtestprotocol(item, nextitem=nextitem)
+  File &quot;d:\python1\lib\site-packages\_pytest\runner.py&quot;, line 120, in runtestprotocol
+    rep = call_and_report(item, &quot;setup&quot;, log)
+  File &quot;d:\python1\lib\site-packages\_pytest\runner.py&quot;, line 215, in call_and_report
+    call = call_runtest_hook(item, when, **kwds)
+  File &quot;d:\python1\lib\site-packages\_pytest\runner.py&quot;, line 254, in call_runtest_hook
+    return CallInfo.from_call(
+  File &quot;d:\python1\lib\site-packages\_pytest\runner.py&quot;, line 311, in from_call
+    result: Optional[TResult] = func()
+  File &quot;d:\python1\lib\site-packages\_pytest\runner.py&quot;, line 255, in &lt;lambda&gt;
+    lambda: ihook(item=item, **kwds), when=when, reraise=reraise
+  File &quot;d:\python1\lib\site-packages\pluggy\hooks.py&quot;, line 286, in __call__
+    return self._hookexec(self, self.get_hookimpls(), kwargs)
+  File &quot;d:\python1\lib\site-packages\pluggy\manager.py&quot;, line 93, in _hookexec
+    return self._inner_hookexec(hook, methods, kwargs)
+  File &quot;d:\python1\lib\site-packages\pluggy\manager.py&quot;, line 84, in &lt;lambda&gt;
+    self._inner_hookexec = lambda hook, methods, kwargs: hook.multicall(
+  File &quot;d:\python1\lib\site-packages\pluggy\callers.py&quot;, line 187, in _multicall
+    res = hook_impl.function(*args)
+  File &quot;d:\python1\lib\site-packages\auto_checklog.py&quot;, line 21, in pytest_runtest_setup
+    test_steps.log_new_func(item.name, str(item.fspath) )
+  File &quot;d:\python1\lib\site-packages\test_steps\__init__.py&quot;, line 109, in log_new_func
+    __step_info.new_func(name, path)
+  File &quot;d:\python1\lib\site-packages\test_steps\__init__.py&quot;, line 87, in new_func
+    self.__log_case()
+  File &quot;d:\python1\lib\site-packages\test_steps\__init__.py&quot;, line 91, in __log_case
+    self.step_logger.info(&quot;Func %s in file: %s&quot; % (self.case_name, self.file_name))
+Message: &#x27;Func 验证用户名不能为空的测试 in file: D:\\script_python\\pythonProject1\\Tavern实战\\six\\test_demo.tavern.yaml&#x27;
+Arguments: ()
+<br/> -------------------------------Captured log setup------------------------------- <br/>INFO     Test:__init__.py:90 ------------------------------------------------------
+INFO     Test:__init__.py:91 Func 验证用户名不能为空的测试 in file: D:\script_python\pythonProject1\Tavern实战\six\test_demo.tavern.yaml<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_demo.tavern.yaml::éªè¯passwordä¸è½ä¸ºç©º</td>
+          <td class="col-duration">0.01</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -----------------------------Captured stderr setup------------------------------ <br/>--- Logging error ---
+Traceback (most recent call last):
+  File &quot;d:\python1\lib\logging\__init__.py&quot;, line 1082, in emit
+    stream.write(msg + self.terminator)
+OSError: [WinError 6] 句柄无效。
+Call stack:
+  File &quot;d:\python1\lib\runpy.py&quot;, line 197, in _run_module_as_main
+    return _run_code(code, main_globals, None,
+  File &quot;d:\python1\lib\runpy.py&quot;, line 87, in _run_code
+    exec(code, run_globals)
+  File &quot;D:\python1\Scripts\pytest.exe\__main__.py&quot;, line 7, in &lt;module&gt;
+    sys.exit(console_main())
+  File &quot;d:\python1\lib\site-packages\_pytest\config\__init__.py&quot;, line 185, in console_main
+    code = main()
+  File &quot;d:\python1\lib\site-packages\_pytest\config\__init__.py&quot;, line 162, in main
+    ret: Union[ExitCode, int] = config.hook.pytest_cmdline_main(
+  File &quot;d:\python1\lib\site-packages\pluggy\hooks.py&quot;, line 286, in __call__
+    return self._hookexec(self, self.get_hookimpls(), kwargs)
+  File &quot;d:\python1\lib\site-packages\pluggy\manager.py&quot;, line 93, in _hookexec
+    return self._inner_hookexec(hook, methods, kwargs)
+  File &quot;d:\python1\lib\site-packages\pluggy\manager.py&quot;, line 84, in &lt;lambda&gt;
+    self._inner_hookexec = lambda hook, methods, kwargs: hook.multicall(
+  File &quot;d:\python1\lib\site-packages\pluggy\callers.py&quot;, line 187, in _multicall
+    res = hook_impl.function(*args)
+  File &quot;d:\python1\lib\site-packages\_pytest\main.py&quot;, line 316, in pytest_cmdline_main
+    return wrap_session(config, _main)
+  File &quot;d:\python1\lib\site-packages\_pytest\main.py&quot;, line 269, in wrap_session
+    session.exitstatus = doit(config, session) or 0
+  File &quot;d:\python1\lib\site-packages\_pytest\main.py&quot;, line 323, in _main
+    config.hook.pytest_runtestloop(session=session)
+  File &quot;d:\python1\lib\site-packages\pluggy\hooks.py&quot;, line 286, in __call__
+    return self._hookexec(self, self.get_hookimpls(), kwargs)
+  File &quot;d:\python1\lib\site-packages\pluggy\manager.py&quot;, line 93, in _hookexec
+    return self._inner_hookexec(hook, methods, kwargs)
+  File &quot;d:\python1\lib\site-packages\pluggy\manager.py&quot;, line 84, in &lt;lambda&gt;
+    self._inner_hookexec = lambda hook, methods, kwargs: hook.multicall(
+  File &quot;d:\python1\lib\site-packages\pluggy\callers.py&quot;, line 187, in _multicall
+    res = hook_impl.function(*args)
+  File &quot;d:\python1\lib\site-packages\_pytest\main.py&quot;, line 348, in pytest_runtestloop
+    item.config.hook.pytest_runtest_protocol(item=item, nextitem=nextitem)
+  File &quot;d:\python1\lib\site-packages\pluggy\hooks.py&quot;, line 286, in __call__
+    return self._hookexec(self, self.get_hookimpls(), kwargs)
+  File &quot;d:\python1\lib\site-packages\pluggy\manager.py&quot;, line 93, in _hookexec
+    return self._inner_hookexec(hook, methods, kwargs)
+  File &quot;d:\python1\lib\site-packages\pluggy\manager.py&quot;, line 84, in &lt;lambda&gt;
+    self._inner_hookexec = lambda hook, methods, kwargs: hook.multicall(
+  File &quot;d:\python1\lib\site-packages\pluggy\callers.py&quot;, line 187, in _multicall
+    res = hook_impl.function(*args)
+  File &quot;d:\python1\lib\site-packages\_pytest\runner.py&quot;, line 109, in pytest_runtest_protocol
+    runtestprotocol(item, nextitem=nextitem)
+  File &quot;d:\python1\lib\site-packages\_pytest\runner.py&quot;, line 120, in runtestprotocol
+    rep = call_and_report(item, &quot;setup&quot;, log)
+  File &quot;d:\python1\lib\site-packages\_pytest\runner.py&quot;, line 215, in call_and_report
+    call = call_runtest_hook(item, when, **kwds)
+  File &quot;d:\python1\lib\site-packages\_pytest\runner.py&quot;, line 254, in call_runtest_hook
+    return CallInfo.from_call(
+  File &quot;d:\python1\lib\site-packages\_pytest\runner.py&quot;, line 311, in from_call
+    result: Optional[TResult] = func()
+  File &quot;d:\python1\lib\site-packages\_pytest\runner.py&quot;, line 255, in &lt;lambda&gt;
+    lambda: ihook(item=item, **kwds), when=when, reraise=reraise
+  File &quot;d:\python1\lib\site-packages\pluggy\hooks.py&quot;, line 286, in __call__
+    return self._hookexec(self, self.get_hookimpls(), kwargs)
+  File &quot;d:\python1\lib\site-packages\pluggy\manager.py&quot;, line 93, in _hookexec
+    return self._inner_hookexec(hook, methods, kwargs)
+  File &quot;d:\python1\lib\site-packages\pluggy\manager.py&quot;, line 84, in &lt;lambda&gt;
+    self._inner_hookexec = lambda hook, methods, kwargs: hook.multicall(
+  File &quot;d:\python1\lib\site-packages\pluggy\callers.py&quot;, line 187, in _multicall
+    res = hook_impl.function(*args)
+  File &quot;d:\python1\lib\site-packages\auto_checklog.py&quot;, line 21, in pytest_runtest_setup
+    test_steps.log_new_func(item.name, str(item.fspath) )
+  File &quot;d:\python1\lib\site-packages\test_steps\__init__.py&quot;, line 109, in log_new_func
+    __step_info.new_func(name, path)
+  File &quot;d:\python1\lib\site-packages\test_steps\__init__.py&quot;, line 87, in new_func
+    self.__log_case()
+  File &quot;d:\python1\lib\site-packages\test_steps\__init__.py&quot;, line 90, in __log_case
+    self.step_logger.info(&quot;------------------------------------------------------&quot;)
+Message: &#x27;------------------------------------------------------&#x27;
+Arguments: ()
+--- Logging error ---
+Traceback (most recent call last):
+  File &quot;d:\python1\lib\logging\__init__.py&quot;, line 1082, in emit
+    stream.write(msg + self.terminator)
+OSError: [WinError 6] 句柄无效。
+Call stack:
+  File &quot;d:\python1\lib\runpy.py&quot;, line 197, in _run_module_as_main
+    return _run_code(code, main_globals, None,
+  File &quot;d:\python1\lib\runpy.py&quot;, line 87, in _run_code
+    exec(code, run_globals)
+  File &quot;D:\python1\Scripts\pytest.exe\__main__.py&quot;, line 7, in &lt;module&gt;
+    sys.exit(console_main())
+  File &quot;d:\python1\lib\site-packages\_pytest\config\__init__.py&quot;, line 185, in console_main
+    code = main()
+  File &quot;d:\python1\lib\site-packages\_pytest\config\__init__.py&quot;, line 162, in main
+    ret: Union[ExitCode, int] = config.hook.pytest_cmdline_main(
+  File &quot;d:\python1\lib\site-packages\pluggy\hooks.py&quot;, line 286, in __call__
+    return self._hookexec(self, self.get_hookimpls(), kwargs)
+  File &quot;d:\python1\lib\site-packages\pluggy\manager.py&quot;, line 93, in _hookexec
+    return self._inner_hookexec(hook, methods, kwargs)
+  File &quot;d:\python1\lib\site-packages\pluggy\manager.py&quot;, line 84, in &lt;lambda&gt;
+    self._inner_hookexec = lambda hook, methods, kwargs: hook.multicall(
+  File &quot;d:\python1\lib\site-packages\pluggy\callers.py&quot;, line 187, in _multicall
+    res = hook_impl.function(*args)
+  File &quot;d:\python1\lib\site-packages\_pytest\main.py&quot;, line 316, in pytest_cmdline_main
+    return wrap_session(config, _main)
+  File &quot;d:\python1\lib\site-packages\_pytest\main.py&quot;, line 269, in wrap_session
+    session.exitstatus = doit(config, session) or 0
+  File &quot;d:\python1\lib\site-packages\_pytest\main.py&quot;, line 323, in _main
+    config.hook.pytest_runtestloop(session=session)
+  File &quot;d:\python1\lib\site-packages\pluggy\hooks.py&quot;, line 286, in __call__
+    return self._hookexec(self, self.get_hookimpls(), kwargs)
+  File &quot;d:\python1\lib\site-packages\pluggy\manager.py&quot;, line 93, in _hookexec
+    return self._inner_hookexec(hook, methods, kwargs)
+  File &quot;d:\python1\lib\site-packages\pluggy\manager.py&quot;, line 84, in &lt;lambda&gt;
+    self._inner_hookexec = lambda hook, methods, kwargs: hook.multicall(
+  File &quot;d:\python1\lib\site-packages\pluggy\callers.py&quot;, line 187, in _multicall
+    res = hook_impl.function(*args)
+  File &quot;d:\python1\lib\site-packages\_pytest\main.py&quot;, line 348, in pytest_runtestloop
+    item.config.hook.pytest_runtest_protocol(item=item, nextitem=nextitem)
+  File &quot;d:\python1\lib\site-packages\pluggy\hooks.py&quot;, line 286, in __call__
+    return self._hookexec(self, self.get_hookimpls(), kwargs)
+  File &quot;d:\python1\lib\site-packages\pluggy\manager.py&quot;, line 93, in _hookexec
+    return self._inner_hookexec(hook, methods, kwargs)
+  File &quot;d:\python1\lib\site-packages\pluggy\manager.py&quot;, line 84, in &lt;lambda&gt;
+    self._inner_hookexec = lambda hook, methods, kwargs: hook.multicall(
+  File &quot;d:\python1\lib\site-packages\pluggy\callers.py&quot;, line 187, in _multicall
+    res = hook_impl.function(*args)
+  File &quot;d:\python1\lib\site-packages\_pytest\runner.py&quot;, line 109, in pytest_runtest_protocol
+    runtestprotocol(item, nextitem=nextitem)
+  File &quot;d:\python1\lib\site-packages\_pytest\runner.py&quot;, line 120, in runtestprotocol
+    rep = call_and_report(item, &quot;setup&quot;, log)
+  File &quot;d:\python1\lib\site-packages\_pytest\runner.py&quot;, line 215, in call_and_report
+    call = call_runtest_hook(item, when, **kwds)
+  File &quot;d:\python1\lib\site-packages\_pytest\runner.py&quot;, line 254, in call_runtest_hook
+    return CallInfo.from_call(
+  File &quot;d:\python1\lib\site-packages\_pytest\runner.py&quot;, line 311, in from_call
+    result: Optional[TResult] = func()
+  File &quot;d:\python1\lib\site-packages\_pytest\runner.py&quot;, line 255, in &lt;lambda&gt;
+    lambda: ihook(item=item, **kwds), when=when, reraise=reraise
+  File &quot;d:\python1\lib\site-packages\pluggy\hooks.py&quot;, line 286, in __call__
+    return self._hookexec(self, self.get_hookimpls(), kwargs)
+  File &quot;d:\python1\lib\site-packages\pluggy\manager.py&quot;, line 93, in _hookexec
+    return self._inner_hookexec(hook, methods, kwargs)
+  File &quot;d:\python1\lib\site-packages\pluggy\manager.py&quot;, line 84, in &lt;lambda&gt;
+    self._inner_hookexec = lambda hook, methods, kwargs: hook.multicall(
+  File &quot;d:\python1\lib\site-packages\pluggy\callers.py&quot;, line 187, in _multicall
+    res = hook_impl.function(*args)
+  File &quot;d:\python1\lib\site-packages\auto_checklog.py&quot;, line 21, in pytest_runtest_setup
+    test_steps.log_new_func(item.name, str(item.fspath) )
+  File &quot;d:\python1\lib\site-packages\test_steps\__init__.py&quot;, line 109, in log_new_func
+    __step_info.new_func(name, path)
+  File &quot;d:\python1\lib\site-packages\test_steps\__init__.py&quot;, line 87, in new_func
+    self.__log_case()
+  File &quot;d:\python1\lib\site-packages\test_steps\__init__.py&quot;, line 91, in __log_case
+    self.step_logger.info(&quot;Func %s in file: %s&quot; % (self.case_name, self.file_name))
+Message: &#x27;Func 验证password不能为空 in file: D:\\script_python\\pythonProject1\\Tavern实战\\six\\test_demo.tavern.yaml&#x27;
+Arguments: ()
+<br/> -------------------------------Captured log setup------------------------------- <br/>INFO     Test:__init__.py:90 ------------------------------------------------------
+INFO     Test:__init__.py:91 Func 验证password不能为空 in file: D:\script_python\pythonProject1\Tavern实战\six\test_demo.tavern.yaml<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_demo.tavern.yaml::éªè¯å¹´é¾å¿é¡»ä¸ºæ´å</td>
+          <td class="col-duration">0.01</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -----------------------------Captured stderr setup------------------------------ <br/>--- Logging error ---
+Traceback (most recent call last):
+  File &quot;d:\python1\lib\logging\__init__.py&quot;, line 1082, in emit
+    stream.write(msg + self.terminator)
+OSError: [WinError 6] 句柄无效。
+Call stack:
+  File &quot;d:\python1\lib\runpy.py&quot;, line 197, in _run_module_as_main
+    return _run_code(code, main_globals, None,
+  File &quot;d:\python1\lib\runpy.py&quot;, line 87, in _run_code
+    exec(code, run_globals)
+  File &quot;D:\python1\Scripts\pytest.exe\__main__.py&quot;, line 7, in &lt;module&gt;
+    sys.exit(console_main())
+  File &quot;d:\python1\lib\site-packages\_pytest\config\__init__.py&quot;, line 185, in console_main
+    code = main()
+  File &quot;d:\python1\lib\site-packages\_pytest\config\__init__.py&quot;, line 162, in main
+    ret: Union[ExitCode, int] = config.hook.pytest_cmdline_main(
+  File &quot;d:\python1\lib\site-packages\pluggy\hooks.py&quot;, line 286, in __call__
+    return self._hookexec(self, self.get_hookimpls(), kwargs)
+  File &quot;d:\python1\lib\site-packages\pluggy\manager.py&quot;, line 93, in _hookexec
+    return self._inner_hookexec(hook, methods, kwargs)
+  File &quot;d:\python1\lib\site-packages\pluggy\manager.py&quot;, line 84, in &lt;lambda&gt;
+    self._inner_hookexec = lambda hook, methods, kwargs: hook.multicall(
+  File &quot;d:\python1\lib\site-packages\pluggy\callers.py&quot;, line 187, in _multicall
+    res = hook_impl.function(*args)
+  File &quot;d:\python1\lib\site-packages\_pytest\main.py&quot;, line 316, in pytest_cmdline_main
+    return wrap_session(config, _main)
+  File &quot;d:\python1\lib\site-packages\_pytest\main.py&quot;, line 269, in wrap_session
+    session.exitstatus = doit(config, session) or 0
+  File &quot;d:\python1\lib\site-packages\_pytest\main.py&quot;, line 323, in _main
+    config.hook.pytest_runtestloop(session=session)
+  File &quot;d:\python1\lib\site-packages\pluggy\hooks.py&quot;, line 286, in __call__
+    return self._hookexec(self, self.get_hookimpls(), kwargs)
+  File &quot;d:\python1\lib\site-packages\pluggy\manager.py&quot;, line 93, in _hookexec
+    return self._inner_hookexec(hook, methods, kwargs)
+  File &quot;d:\python1\lib\site-packages\pluggy\manager.py&quot;, line 84, in &lt;lambda&gt;
+    self._inner_hookexec = lambda hook, methods, kwargs: hook.multicall(
+  File &quot;d:\python1\lib\site-packages\pluggy\callers.py&quot;, line 187, in _multicall
+    res = hook_impl.function(*args)
+  File &quot;d:\python1\lib\site-packages\_pytest\main.py&quot;, line 348, in pytest_runtestloop
+    item.config.hook.pytest_runtest_protocol(item=item, nextitem=nextitem)
+  File &quot;d:\python1\lib\site-packages\pluggy\hooks.py&quot;, line 286, in __call__
+    return self._hookexec(self, self.get_hookimpls(), kwargs)
+  File &quot;d:\python1\lib\site-packages\pluggy\manager.py&quot;, line 93, in _hookexec
+    return self._inner_hookexec(hook, methods, kwargs)
+  File &quot;d:\python1\lib\site-packages\pluggy\manager.py&quot;, line 84, in &lt;lambda&gt;
+    self._inner_hookexec = lambda hook, methods, kwargs: hook.multicall(
+  File &quot;d:\python1\lib\site-packages\pluggy\callers.py&quot;, line 187, in _multicall
+    res = hook_impl.function(*args)
+  File &quot;d:\python1\lib\site-packages\_pytest\runner.py&quot;, line 109, in pytest_runtest_protocol
+    runtestprotocol(item, nextitem=nextitem)
+  File &quot;d:\python1\lib\site-packages\_pytest\runner.py&quot;, line 120, in runtestprotocol
+    rep = call_and_report(item, &quot;setup&quot;, log)
+  File &quot;d:\python1\lib\site-packages\_pytest\runner.py&quot;, line 215, in call_and_report
+    call = call_runtest_hook(item, when, **kwds)
+  File &quot;d:\python1\lib\site-packages\_pytest\runner.py&quot;, line 254, in call_runtest_hook
+    return CallInfo.from_call(
+  File &quot;d:\python1\lib\site-packages\_pytest\runner.py&quot;, line 311, in from_call
+    result: Optional[TResult] = func()
+  File &quot;d:\python1\lib\site-packages\_pytest\runner.py&quot;, line 255, in &lt;lambda&gt;
+    lambda: ihook(item=item, **kwds), when=when, reraise=reraise
+  File &quot;d:\python1\lib\site-packages\pluggy\hooks.py&quot;, line 286, in __call__
+    return self._hookexec(self, self.get_hookimpls(), kwargs)
+  File &quot;d:\python1\lib\site-packages\pluggy\manager.py&quot;, line 93, in _hookexec
+    return self._inner_hookexec(hook, methods, kwargs)
+  File &quot;d:\python1\lib\site-packages\pluggy\manager.py&quot;, line 84, in &lt;lambda&gt;
+    self._inner_hookexec = lambda hook, methods, kwargs: hook.multicall(
+  File &quot;d:\python1\lib\site-packages\pluggy\callers.py&quot;, line 187, in _multicall
+    res = hook_impl.function(*args)
+  File &quot;d:\python1\lib\site-packages\auto_checklog.py&quot;, line 21, in pytest_runtest_setup
+    test_steps.log_new_func(item.name, str(item.fspath) )
+  File &quot;d:\python1\lib\site-packages\test_steps\__init__.py&quot;, line 109, in log_new_func
+    __step_info.new_func(name, path)
+  File &quot;d:\python1\lib\site-packages\test_steps\__init__.py&quot;, line 87, in new_func
+    self.__log_case()
+  File &quot;d:\python1\lib\site-packages\test_steps\__init__.py&quot;, line 90, in __log_case
+    self.step_logger.info(&quot;------------------------------------------------------&quot;)
+Message: &#x27;------------------------------------------------------&#x27;
+Arguments: ()
+--- Logging error ---
+Traceback (most recent call last):
+  File &quot;d:\python1\lib\logging\__init__.py&quot;, line 1082, in emit
+    stream.write(msg + self.terminator)
+OSError: [WinError 6] 句柄无效。
+Call stack:
+  File &quot;d:\python1\lib\runpy.py&quot;, line 197, in _run_module_as_main
+    return _run_code(code, main_globals, None,
+  File &quot;d:\python1\lib\runpy.py&quot;, line 87, in _run_code
+    exec(code, run_globals)
+  File &quot;D:\python1\Scripts\pytest.exe\__main__.py&quot;, line 7, in &lt;module&gt;
+    sys.exit(console_main())
+  File &quot;d:\python1\lib\site-packages\_pytest\config\__init__.py&quot;, line 185, in console_main
+    code = main()
+  File &quot;d:\python1\lib\site-packages\_pytest\config\__init__.py&quot;, line 162, in main
+    ret: Union[ExitCode, int] = config.hook.pytest_cmdline_main(
+  File &quot;d:\python1\lib\site-packages\pluggy\hooks.py&quot;, line 286, in __call__
+    return self._hookexec(self, self.get_hookimpls(), kwargs)
+  File &quot;d:\python1\lib\site-packages\pluggy\manager.py&quot;, line 93, in _hookexec
+    return self._inner_hookexec(hook, methods, kwargs)
+  File &quot;d:\python1\lib\site-packages\pluggy\manager.py&quot;, line 84, in &lt;lambda&gt;
+    self._inner_hookexec = lambda hook, methods, kwargs: hook.multicall(
+  File &quot;d:\python1\lib\site-packages\pluggy\callers.py&quot;, line 187, in _multicall
+    res = hook_impl.function(*args)
+  File &quot;d:\python1\lib\site-packages\_pytest\main.py&quot;, line 316, in pytest_cmdline_main
+    return wrap_session(config, _main)
+  File &quot;d:\python1\lib\site-packages\_pytest\main.py&quot;, line 269, in wrap_session
+    session.exitstatus = doit(config, session) or 0
+  File &quot;d:\python1\lib\site-packages\_pytest\main.py&quot;, line 323, in _main
+    config.hook.pytest_runtestloop(session=session)
+  File &quot;d:\python1\lib\site-packages\pluggy\hooks.py&quot;, line 286, in __call__
+    return self._hookexec(self, self.get_hookimpls(), kwargs)
+  File &quot;d:\python1\lib\site-packages\pluggy\manager.py&quot;, line 93, in _hookexec
+    return self._inner_hookexec(hook, methods, kwargs)
+  File &quot;d:\python1\lib\site-packages\pluggy\manager.py&quot;, line 84, in &lt;lambda&gt;
+    self._inner_hookexec = lambda hook, methods, kwargs: hook.multicall(
+  File &quot;d:\python1\lib\site-packages\pluggy\callers.py&quot;, line 187, in _multicall
+    res = hook_impl.function(*args)
+  File &quot;d:\python1\lib\site-packages\_pytest\main.py&quot;, line 348, in pytest_runtestloop
+    item.config.hook.pytest_runtest_protocol(item=item, nextitem=nextitem)
+  File &quot;d:\python1\lib\site-packages\pluggy\hooks.py&quot;, line 286, in __call__
+    return self._hookexec(self, self.get_hookimpls(), kwargs)
+  File &quot;d:\python1\lib\site-packages\pluggy\manager.py&quot;, line 93, in _hookexec
+    return self._inner_hookexec(hook, methods, kwargs)
+  File &quot;d:\python1\lib\site-packages\pluggy\manager.py&quot;, line 84, in &lt;lambda&gt;
+    self._inner_hookexec = lambda hook, methods, kwargs: hook.multicall(
+  File &quot;d:\python1\lib\site-packages\pluggy\callers.py&quot;, line 187, in _multicall
+    res = hook_impl.function(*args)
+  File &quot;d:\python1\lib\site-packages\_pytest\runner.py&quot;, line 109, in pytest_runtest_protocol
+    runtestprotocol(item, nextitem=nextitem)
+  File &quot;d:\python1\lib\site-packages\_pytest\runner.py&quot;, line 120, in runtestprotocol
+    rep = call_and_report(item, &quot;setup&quot;, log)
+  File &quot;d:\python1\lib\site-packages\_pytest\runner.py&quot;, line 215, in call_and_report
+    call = call_runtest_hook(item, when, **kwds)
+  File &quot;d:\python1\lib\site-packages\_pytest\runner.py&quot;, line 254, in call_runtest_hook
+    return CallInfo.from_call(
+  File &quot;d:\python1\lib\site-packages\_pytest\runner.py&quot;, line 311, in from_call
+    result: Optional[TResult] = func()
+  File &quot;d:\python1\lib\site-packages\_pytest\runner.py&quot;, line 255, in &lt;lambda&gt;
+    lambda: ihook(item=item, **kwds), when=when, reraise=reraise
+  File &quot;d:\python1\lib\site-packages\pluggy\hooks.py&quot;, line 286, in __call__
+    return self._hookexec(self, self.get_hookimpls(), kwargs)
+  File &quot;d:\python1\lib\site-packages\pluggy\manager.py&quot;, line 93, in _hookexec
+    return self._inner_hookexec(hook, methods, kwargs)
+  File &quot;d:\python1\lib\site-packages\pluggy\manager.py&quot;, line 84, in &lt;lambda&gt;
+    self._inner_hookexec = lambda hook, methods, kwargs: hook.multicall(
+  File &quot;d:\python1\lib\site-packages\pluggy\callers.py&quot;, line 187, in _multicall
+    res = hook_impl.function(*args)
+  File &quot;d:\python1\lib\site-packages\auto_checklog.py&quot;, line 21, in pytest_runtest_setup
+    test_steps.log_new_func(item.name, str(item.fspath) )
+  File &quot;d:\python1\lib\site-packages\test_steps\__init__.py&quot;, line 109, in log_new_func
+    __step_info.new_func(name, path)
+  File &quot;d:\python1\lib\site-packages\test_steps\__init__.py&quot;, line 87, in new_func
+    self.__log_case()
+  File &quot;d:\python1\lib\site-packages\test_steps\__init__.py&quot;, line 91, in __log_case
+    self.step_logger.info(&quot;Func %s in file: %s&quot; % (self.case_name, self.file_name))
+Message: &#x27;Func 验证年龄必须为整型 in file: D:\\script_python\\pythonProject1\\Tavern实战\\six\\test_demo.tavern.yaml&#x27;
+Arguments: ()
+<br/> -------------------------------Captured log setup------------------------------- <br/>INFO     Test:__init__.py:90 ------------------------------------------------------
+INFO     Test:__init__.py:91 Func 验证年龄必须为整型 in file: D:\script_python\pythonProject1\Tavern实战\six\test_demo.tavern.yaml<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_demo.tavern.yaml::éªè¯æ§å«å¿é¡»æ¯ç·æå¥³</td>
+          <td class="col-duration">0.01</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -----------------------------Captured stderr setup------------------------------ <br/>--- Logging error ---
+Traceback (most recent call last):
+  File &quot;d:\python1\lib\logging\__init__.py&quot;, line 1082, in emit
+    stream.write(msg + self.terminator)
+OSError: [WinError 6] 句柄无效。
+Call stack:
+  File &quot;d:\python1\lib\runpy.py&quot;, line 197, in _run_module_as_main
+    return _run_code(code, main_globals, None,
+  File &quot;d:\python1\lib\runpy.py&quot;, line 87, in _run_code
+    exec(code, run_globals)
+  File &quot;D:\python1\Scripts\pytest.exe\__main__.py&quot;, line 7, in &lt;module&gt;
+    sys.exit(console_main())
+  File &quot;d:\python1\lib\site-packages\_pytest\config\__init__.py&quot;, line 185, in console_main
+    code = main()
+  File &quot;d:\python1\lib\site-packages\_pytest\config\__init__.py&quot;, line 162, in main
+    ret: Union[ExitCode, int] = config.hook.pytest_cmdline_main(
+  File &quot;d:\python1\lib\site-packages\pluggy\hooks.py&quot;, line 286, in __call__
+    return self._hookexec(self, self.get_hookimpls(), kwargs)
+  File &quot;d:\python1\lib\site-packages\pluggy\manager.py&quot;, line 93, in _hookexec
+    return self._inner_hookexec(hook, methods, kwargs)
+  File &quot;d:\python1\lib\site-packages\pluggy\manager.py&quot;, line 84, in &lt;lambda&gt;
+    self._inner_hookexec = lambda hook, methods, kwargs: hook.multicall(
+  File &quot;d:\python1\lib\site-packages\pluggy\callers.py&quot;, line 187, in _multicall
+    res = hook_impl.function(*args)
+  File &quot;d:\python1\lib\site-packages\_pytest\main.py&quot;, line 316, in pytest_cmdline_main
+    return wrap_session(config, _main)
+  File &quot;d:\python1\lib\site-packages\_pytest\main.py&quot;, line 269, in wrap_session
+    session.exitstatus = doit(config, session) or 0
+  File &quot;d:\python1\lib\site-packages\_pytest\main.py&quot;, line 323, in _main
+    config.hook.pytest_runtestloop(session=session)
+  File &quot;d:\python1\lib\site-packages\pluggy\hooks.py&quot;, line 286, in __call__
+    return self._hookexec(self, self.get_hookimpls(), kwargs)
+  File &quot;d:\python1\lib\site-packages\pluggy\manager.py&quot;, line 93, in _hookexec
+    return self._inner_hookexec(hook, methods, kwargs)
+  File &quot;d:\python1\lib\site-packages\pluggy\manager.py&quot;, line 84, in &lt;lambda&gt;
+    self._inner_hookexec = lambda hook, methods, kwargs: hook.multicall(
+  File &quot;d:\python1\lib\site-packages\pluggy\callers.py&quot;, line 187, in _multicall
+    res = hook_impl.function(*args)
+  File &quot;d:\python1\lib\site-packages\_pytest\main.py&quot;, line 348, in pytest_runtestloop
+    item.config.hook.pytest_runtest_protocol(item=item, nextitem=nextitem)
+  File &quot;d:\python1\lib\site-packages\pluggy\hooks.py&quot;, line 286, in __call__
+    return self._hookexec(self, self.get_hookimpls(), kwargs)
+  File &quot;d:\python1\lib\site-packages\pluggy\manager.py&quot;, line 93, in _hookexec
+    return self._inner_hookexec(hook, methods, kwargs)
+  File &quot;d:\python1\lib\site-packages\pluggy\manager.py&quot;, line 84, in &lt;lambda&gt;
+    self._inner_hookexec = lambda hook, methods, kwargs: hook.multicall(
+  File &quot;d:\python1\lib\site-packages\pluggy\callers.py&quot;, line 187, in _multicall
+    res = hook_impl.function(*args)
+  File &quot;d:\python1\lib\site-packages\_pytest\runner.py&quot;, line 109, in pytest_runtest_protocol
+    runtestprotocol(item, nextitem=nextitem)
+  File &quot;d:\python1\lib\site-packages\_pytest\runner.py&quot;, line 120, in runtestprotocol
+    rep = call_and_report(item, &quot;setup&quot;, log)
+  File &quot;d:\python1\lib\site-packages\_pytest\runner.py&quot;, line 215, in call_and_report
+    call = call_runtest_hook(item, when, **kwds)
+  File &quot;d:\python1\lib\site-packages\_pytest\runner.py&quot;, line 254, in call_runtest_hook
+    return CallInfo.from_call(
+  File &quot;d:\python1\lib\site-packages\_pytest\runner.py&quot;, line 311, in from_call
+    result: Optional[TResult] = func()
+  File &quot;d:\python1\lib\site-packages\_pytest\runner.py&quot;, line 255, in &lt;lambda&gt;
+    lambda: ihook(item=item, **kwds), when=when, reraise=reraise
+  File &quot;d:\python1\lib\site-packages\pluggy\hooks.py&quot;, line 286, in __call__
+    return self._hookexec(self, self.get_hookimpls(), kwargs)
+  File &quot;d:\python1\lib\site-packages\pluggy\manager.py&quot;, line 93, in _hookexec
+    return self._inner_hookexec(hook, methods, kwargs)
+  File &quot;d:\python1\lib\site-packages\pluggy\manager.py&quot;, line 84, in &lt;lambda&gt;
+    self._inner_hookexec = lambda hook, methods, kwargs: hook.multicall(
+  File &quot;d:\python1\lib\site-packages\pluggy\callers.py&quot;, line 187, in _multicall
+    res = hook_impl.function(*args)
+  File &quot;d:\python1\lib\site-packages\auto_checklog.py&quot;, line 21, in pytest_runtest_setup
+    test_steps.log_new_func(item.name, str(item.fspath) )
+  File &quot;d:\python1\lib\site-packages\test_steps\__init__.py&quot;, line 109, in log_new_func
+    __step_info.new_func(name, path)
+  File &quot;d:\python1\lib\site-packages\test_steps\__init__.py&quot;, line 87, in new_func
+    self.__log_case()
+  File &quot;d:\python1\lib\site-packages\test_steps\__init__.py&quot;, line 90, in __log_case
+    self.step_logger.info(&quot;------------------------------------------------------&quot;)
+Message: &#x27;------------------------------------------------------&#x27;
+Arguments: ()
+--- Logging error ---
+Traceback (most recent call last):
+  File &quot;d:\python1\lib\logging\__init__.py&quot;, line 1082, in emit
+    stream.write(msg + self.terminator)
+OSError: [WinError 6] 句柄无效。
+Call stack:
+  File &quot;d:\python1\lib\runpy.py&quot;, line 197, in _run_module_as_main
+    return _run_code(code, main_globals, None,
+  File &quot;d:\python1\lib\runpy.py&quot;, line 87, in _run_code
+    exec(code, run_globals)
+  File &quot;D:\python1\Scripts\pytest.exe\__main__.py&quot;, line 7, in &lt;module&gt;
+    sys.exit(console_main())
+  File &quot;d:\python1\lib\site-packages\_pytest\config\__init__.py&quot;, line 185, in console_main
+    code = main()
+  File &quot;d:\python1\lib\site-packages\_pytest\config\__init__.py&quot;, line 162, in main
+    ret: Union[ExitCode, int] = config.hook.pytest_cmdline_main(
+  File &quot;d:\python1\lib\site-packages\pluggy\hooks.py&quot;, line 286, in __call__
+    return self._hookexec(self, self.get_hookimpls(), kwargs)
+  File &quot;d:\python1\lib\site-packages\pluggy\manager.py&quot;, line 93, in _hookexec
+    return self._inner_hookexec(hook, methods, kwargs)
+  File &quot;d:\python1\lib\site-packages\pluggy\manager.py&quot;, line 84, in &lt;lambda&gt;
+    self._inner_hookexec = lambda hook, methods, kwargs: hook.multicall(
+  File &quot;d:\python1\lib\site-packages\pluggy\callers.py&quot;, line 187, in _multicall
+    res = hook_impl.function(*args)
+  File &quot;d:\python1\lib\site-packages\_pytest\main.py&quot;, line 316, in pytest_cmdline_main
+    return wrap_session(config, _main)
+  File &quot;d:\python1\lib\site-packages\_pytest\main.py&quot;, line 269, in wrap_session
+    session.exitstatus = doit(config, session) or 0
+  File &quot;d:\python1\lib\site-packages\_pytest\main.py&quot;, line 323, in _main
+    config.hook.pytest_runtestloop(session=session)
+  File &quot;d:\python1\lib\site-packages\pluggy\hooks.py&quot;, line 286, in __call__
+    return self._hookexec(self, self.get_hookimpls(), kwargs)
+  File &quot;d:\python1\lib\site-packages\pluggy\manager.py&quot;, line 93, in _hookexec
+    return self._inner_hookexec(hook, methods, kwargs)
+  File &quot;d:\python1\lib\site-packages\pluggy\manager.py&quot;, line 84, in &lt;lambda&gt;
+    self._inner_hookexec = lambda hook, methods, kwargs: hook.multicall(
+  File &quot;d:\python1\lib\site-packages\pluggy\callers.py&quot;, line 187, in _multicall
+    res = hook_impl.function(*args)
+  File &quot;d:\python1\lib\site-packages\_pytest\main.py&quot;, line 348, in pytest_runtestloop
+    item.config.hook.pytest_runtest_protocol(item=item, nextitem=nextitem)
+  File &quot;d:\python1\lib\site-packages\pluggy\hooks.py&quot;, line 286, in __call__
+    return self._hookexec(self, self.get_hookimpls(), kwargs)
+  File &quot;d:\python1\lib\site-packages\pluggy\manager.py&quot;, line 93, in _hookexec
+    return self._inner_hookexec(hook, methods, kwargs)
+  File &quot;d:\python1\lib\site-packages\pluggy\manager.py&quot;, line 84, in &lt;lambda&gt;
+    self._inner_hookexec = lambda hook, methods, kwargs: hook.multicall(
+  File &quot;d:\python1\lib\site-packages\pluggy\callers.py&quot;, line 187, in _multicall
+    res = hook_impl.function(*args)
+  File &quot;d:\python1\lib\site-packages\_pytest\runner.py&quot;, line 109, in pytest_runtest_protocol
+    runtestprotocol(item, nextitem=nextitem)
+  File &quot;d:\python1\lib\site-packages\_pytest\runner.py&quot;, line 120, in runtestprotocol
+    rep = call_and_report(item, &quot;setup&quot;, log)
+  File &quot;d:\python1\lib\site-packages\_pytest\runner.py&quot;, line 215, in call_and_report
+    call = call_runtest_hook(item, when, **kwds)
+  File &quot;d:\python1\lib\site-packages\_pytest\runner.py&quot;, line 254, in call_runtest_hook
+    return CallInfo.from_call(
+  File &quot;d:\python1\lib\site-packages\_pytest\runner.py&quot;, line 311, in from_call
+    result: Optional[TResult] = func()
+  File &quot;d:\python1\lib\site-packages\_pytest\runner.py&quot;, line 255, in &lt;lambda&gt;
+    lambda: ihook(item=item, **kwds), when=when, reraise=reraise
+  File &quot;d:\python1\lib\site-packages\pluggy\hooks.py&quot;, line 286, in __call__
+    return self._hookexec(self, self.get_hookimpls(), kwargs)
+  File &quot;d:\python1\lib\site-packages\pluggy\manager.py&quot;, line 93, in _hookexec
+    return self._inner_hookexec(hook, methods, kwargs)
+  File &quot;d:\python1\lib\site-packages\pluggy\manager.py&quot;, line 84, in &lt;lambda&gt;
+    self._inner_hookexec = lambda hook, methods, kwargs: hook.multicall(
+  File &quot;d:\python1\lib\site-packages\pluggy\callers.py&quot;, line 187, in _multicall
+    res = hook_impl.function(*args)
+  File &quot;d:\python1\lib\site-packages\auto_checklog.py&quot;, line 21, in pytest_runtest_setup
+    test_steps.log_new_func(item.name, str(item.fspath) )
+  File &quot;d:\python1\lib\site-packages\test_steps\__init__.py&quot;, line 109, in log_new_func
+    __step_info.new_func(name, path)
+  File &quot;d:\python1\lib\site-packages\test_steps\__init__.py&quot;, line 87, in new_func
+    self.__log_case()
+  File &quot;d:\python1\lib\site-packages\test_steps\__init__.py&quot;, line 91, in __log_case
+    self.step_logger.info(&quot;Func %s in file: %s&quot; % (self.case_name, self.file_name))
+Message: &#x27;Func 验证性别必须是男或女 in file: D:\\script_python\\pythonProject1\\Tavern实战\\six\\test_demo.tavern.yaml&#x27;
+Arguments: ()
+<br/> -------------------------------Captured log setup------------------------------- <br/>INFO     Test:__init__.py:90 ------------------------------------------------------
+INFO     Test:__init__.py:91 Func 验证性别必须是男或女 in file: D:\script_python\pythonProject1\Tavern实战\six\test_demo.tavern.yaml<br/></div></td></tr></tbody></table></body></html>

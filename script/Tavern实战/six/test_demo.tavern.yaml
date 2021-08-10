@@ -1,0 +1,124 @@
+test_name: 全部输入正确信息验证接口
+
+stages:
+  - name: 输入正确信息
+    request:
+      url: http://127.0.0.1:5000/login/
+      method: POST
+      data:
+         username: 无涯
+         password: admin
+         age: 12
+         sex: 男
+    response:
+       status_code: 200
+       json:
+         username: 无涯
+         password: admin
+         age: 12
+         sex: 男
+
+---
+
+test_name: 验证用户名不能为空的测试
+
+stages:
+  - name: 验证用户名为空
+    request:
+      url: http://127.0.0.1:5000/login/
+      method: POST
+      data:
+         password: admin
+         age: 12
+         sex: 男
+    response:
+       status_code: 400
+       json:
+         message:
+           username: username参数不能为空
+
+---
+
+test_name: 验证password不能为空
+
+stages:
+  - name: 密码为空时响应信息
+    request:
+      url: http://127.0.0.1:5000/login/
+      method: POST
+      data:
+         username: 无涯
+         age: 12
+         sex: 男
+    response:
+       status_code: 400
+       json:
+         message:
+           password: 密码不能为空
+---
+
+test_name: 验证年龄必须为整型
+
+stages:
+  - name: 当age为非int时
+    request:
+      url: http://127.0.0.1:5000/login/
+      method: POST
+      data:
+         username: 无涯
+         password: admin
+         age: 二十
+         sex: 男
+    response:
+       status_code: 400
+       json:
+         message:
+           age: 年龄必须为正整数
+---
+
+test_name: 验证性别必须是男或女
+
+stages:
+  - name: 性别输入其他
+    request:
+      url: http://127.0.0.1:5000/login/
+      method: POST
+      data:
+         username: 无涯
+         password: admin
+         age: 20
+         sex: 不知道
+    response:
+       status_code: 400
+       json:
+         message:
+           sex: 性别只能是男或女
+
+---
+
+test_name: 拉勾网测试
+
+stages:
+  - name: 请求拉勾网招聘信息
+    request:
+      url: https://www.lagou.com/jobs/v2/positionAjax.json
+      method: POST
+      data:
+        first: Ture
+        city: 上海
+        kd: 自动化测试工程师
+        cl: False
+      headers:
+        user-agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.107 Safari/537.36 Edg/92.0.902.55
+        content-type: application/x-www-form-urlencoded; charset=UTF-8
+        cookie: user_trace_token=20210722175302-3494da11-d18a-46de-8341-8aced6d47045; _ga=GA1.2.2096563177.1626947584; LGUID=20210722175303-d9107b08-2bcb-4bb5-bc4f-35e54a788640; gate_login_token=cceaace95ccbd4d0e121a9f7f342822144583ebaccb2bd98; LG_LOGIN_USER_ID=1eee7fee0ecaa4b6c3f14b654026b2a120daaea567453a1a; LG_HAS_LOGIN=1; showExpriedIndex=1; showExpriedCompanyHome=1; showExpriedMyPublish=1; hasDeliver=98; privacyPolicyPopup=false; index_location_city=%E4%B8%8A%E6%B5%B7; RECOMMEND_TIP=true; WEBTJ-ID=20210727141940-17ae69e6d1c43-0472d410165dc-7e687a6e-1338645-17ae69e6d1d56d; sensorsdata2015session=%7B%7D; JSESSIONID=ABAAAECABFAACEAC1E637D9584A688359ED1F43AAE160CE; _putrc=402C16F72BC8F765; login=true; unick=%E6%BD%98%E4%B8%BD; Hm_lvt_4233e74dff0ae5bd0a3d81c6ccf756e6=1626947584,1626947589,1627351788,1627373850; __lg_stoken__=0c0f376f3363c34808793bf4de187381f6ad6cd027e0ea854ae092758faa7791b0700e2928e2dbb23942e48caf0d404d6b31e91b844e5952a7eeab38301fda11101a90c44df0; X_HTTP_TOKEN=60e423010da79d53808745726131399bff866ff033; __SAFETY_CLOSE_TIME__8556999=1; _gat=1; PRE_UTM=; PRE_HOST=; PRE_LAND=https%3A%2F%2Fwww.lagou.com%2Fjobs%2F7893881.html; sensorsdata2015jssdkcross=%7B%22distinct_id%22%3A%228556999%22%2C%22%24device_id%22%3A%2217acda222f595f-07362a4c19c9fc-7a697f6c-1338645-17acda222f7bd5%22%2C%22props%22%3A%7B%22%24latest_traffic_source_type%22%3A%22%E7%9B%B4%E6%8E%A5%E6%B5%81%E9%87%8F%22%2C%22%24latest_search_keyword%22%3A%22%E6%9C%AA%E5%8F%96%E5%88%B0%E5%80%BC_%E7%9B%B4%E6%8E%A5%E6%89%93%E5%BC%80%22%2C%22%24latest_referrer%22%3A%22%22%2C%22%24os%22%3A%22Windows%22%2C%22%24browser%22%3A%22Chrome%22%2C%22%24browser_version%22%3A%2292.0.4515.107%22%2C%22lagou_company_id%22%3A%22%22%7D%2C%22first_id%22%3A%2217acda222f595f-07362a4c19c9fc-7a697f6c-1338645-17acda222f7bd5%22%7D; LGSID=20210729163648-36bfbd99-5cbc-4276-a8a8-fb8dd9b82d49; PRE_SITE=https%3A%2F%2Fwww.lagou.com%2Fcommon-sec%2Fsecurity-check.html%3Fseed%3D2B57EDB14EFAFBFF8C7B30D473FE7ABAA6BFF744F802A4C96347F15EDC78B1A3178F3CC3609E768C2B24CBFD55AFA985%26ts%3D16275478076946%26name%3D0c0f376f3363%26callbackUrl%3Dhttps%253A%252F%252Fwww.lagou.com%252Fjobs%252F7893881.html%26srcReferer%3Dhttps%253A%252F%252Fwww.lagou.com%252Fwn%252Fjobs%253Fpx%253Dnew%2526pn%253D1%2526cl%253Dfalse%2526fromSearch%253Dtrue%2526city%253D%2525E4%2525B8%25258A%2525E6%2525B5%2525B7%2526kd%253D%2525E8%252587%2525AA%2525E5%25258A%2525A8%2525E5%25258C%252596%2525E6%2525B5%25258B%2525E8%2525AF%252595%2525E5%2525B7%2525A5%2525E7%2525A8%25258B%2525E5%2525B8%252588; LGRID=20210729163648-5fcf6eab-ce5f-4227-862c-ecf17b257d17; Hm_lpvt_4233e74dff0ae5bd0a3d81c6ccf756e6=1627547809; _gid=GA1.2.175428069.1627547809
+        referer: https://www.lagou.com/wn/jobs?px=new&pn=1&cl=false&fromSearch=true&city=%E4%B8%8A%E6%B5%B7&kd=%E8%87%AA%E5%8A%A8%E5%8C%96%E6%B5%8B%E8%AF%95%E5%B7%A5%E7%A8%8B%E5%B8%88
+    response:
+      status_code: 200
+      json:
+        success: True
+        msg: None
+        code: 0
+        content:
+          positionResult:
+            resultSize: 15
