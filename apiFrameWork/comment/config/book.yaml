@@ -1,0 +1,5 @@
+book_002:
+  {"username":"panli", "password": 123456, "age": 27, "sex": "女"}
+
+book_004:
+  {"username":"无涯", "password": 99999, "age": 30, "sex": "男"}

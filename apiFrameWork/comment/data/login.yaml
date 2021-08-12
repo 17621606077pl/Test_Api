@@ -1,0 +1,40 @@
+#用户登陆成功
+url: http://127.0.0.1:5000/login/
+method: POST
+data:
+  username: 无涯
+  password: admin123
+  age: 25
+  sex: 男
+expect: 无涯
+
+---
+
+url: http://127.0.0.1:5000/login/
+method: POST
+data:
+   password: admin123
+   age: 25
+   sex: 男
+expect: username参数不能为空
+
+---
+
+url: http://127.0.0.1:5000/login/
+method: POST
+data:
+   username: 小明
+   age: 25
+   sex: 男
+expect: 密码不能为空
+
+---
+
+url: http://127.0.0.1:5000/login/
+method: POST
+data:
+   username: 小明
+   password: 123999
+   age: 25
+   sex: 不知道
+expect: 性别只能是男或女

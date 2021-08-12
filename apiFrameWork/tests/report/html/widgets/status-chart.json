@@ -1,0 +1,51 @@
+[ {
+  "uid" : "675e5b997c20513d",
+  "name" : "test_login_token_user[datas1]",
+  "time" : {
+    "start" : 1628255580165,
+    "stop" : 1628255580234,
+    "duration" : 69
+  },
+  "status" : "passed",
+  "severity" : "normal"
+}, {
+  "uid" : "5731dd256261cfeb",
+  "name" : "test_login_token_user[datas4]",
+  "time" : {
+    "start" : 1628255580437,
+    "stop" : 1628255580515,
+    "duration" : 78
+  },
+  "status" : "passed",
+  "severity" : "normal"
+}, {
+  "uid" : "eadd0258c08b3d1c",
+  "name" : "test_login_token_user[datas0]",
+  "time" : {
+    "start" : 1628255580088,
+    "stop" : 1628255580162,
+    "duration" : 74
+  },
+  "status" : "passed",
+  "severity" : "normal"
+}, {
+  "uid" : "1cbee5086f3a9a67",
+  "name" : "test_login_token_user[datas3]",
+  "time" : {
+    "start" : 1628255580360,
+    "stop" : 1628255580433,
+    "duration" : 73
+  },
+  "status" : "passed",
+  "severity" : "normal"
+}, {
+  "uid" : "4b836c32221b924b",
+  "name" : "test_login_token_user[datas2]",
+  "time" : {
+    "start" : 1628255580256,
+    "stop" : 1628255580355,
+    "duration" : 99
+  },
+  "status" : "passed",
+  "severity" : "normal"
+} ]
